@@ -204,16 +204,11 @@ class CommandRouter:
             context: Handler context with arguments
             
         Returns:
-            Help text response
+            Help text response (condensed for low bandwidth)
         """
         # Get BBS info
         bbs_name = self.configuration.GetBbsName()
         bbs_node = self.configuration.GetNodeId()
-        
-        lines = [
-            f"=== {bbs_name} ({bbs_node}) ===",
-            "",
-        ]
         
         # If specific command help requested
         if context.arguments:
@@ -221,35 +216,12 @@ class CommandRouter:
             help_text = self.GetCommandHelp(command)
             
             if help_text:
-                lines.append(help_text)
+                return help_text
             else:
-                lines.append(f"Unknown command: {command}")
-            
-            return "\n".join(lines)
+                return f"Unknown: {command}"
         
-        # Otherwise show all commands
-        commands = self.GetAvailableCommands()
-        
-        # Get help from plugins
-        plugin_help = self.plugin_manager.GetAllHelpText()
-        
-        lines.extend([
-            "Available commands:",
-            "",
-        ])
-        
-        # Add core commands
-        lines.extend([
-            "  PING - Check if BBS is online",
-            "  HELP [command] - Show this help",
-            "",
-        ])
-        
-        # Add plugin commands
-        if plugin_help:
-            lines.append(plugin_help)
-        
-        return "\n".join(lines)
+        # Otherwise show brief command list
+        return f"{bbs_name} cmds: PING HELP MSG READ AREAS BBS"
     
     def HandlePingCommand(self, context: 'HandlerContext') -> str:
         """
@@ -266,7 +238,7 @@ class CommandRouter:
             Pong response
         """
         bbs_name = self.configuration.GetBbsName()
-        return f"PONG from {bbs_name} - BBS is online!"
+        return f"PONG {bbs_name}"
 
 
 class HandlerContext:

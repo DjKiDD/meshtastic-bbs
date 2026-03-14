@@ -282,22 +282,6 @@ class BulletinBoardPlugin(BasePlugin):
         Get help text for bulletin board commands.
         
         Returns:
-            Formatted help string
+            Condensed help string for low bandwidth
         """
-        lines = [
-            "=== Bulletin Board ===",
-            "",
-            "BBS <area> <message>",
-            "  Post a message to a bulletin board area",
-            "  Example: BBS for-sale Selling my radio",
-            "",
-            "AREAS",
-            "  List all available BBS areas",
-            "",
-            "READ <area>",
-            "  Read posts in a bulletin board area",
-            "  Example: READ general",
-            "",
-        ]
-        
-        return "\n".join(lines)
+        return "BBS <area> <txt> | AREAS | READ <area>"

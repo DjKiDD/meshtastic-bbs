@@ -141,35 +141,17 @@ def HandleReadMessages(context: HandlerContext) -> str:
     messages = context.database.GetMessagesForNode(context.from_node)
     
     if not messages:
-        return "You have no messages."
+        return "No messages."
     
     # Get unread count
     unread_count = context.database.GetUnreadMessageCount(context.from_node)
     
-    lines = [
-        f"=== Your Messages ({len(messages)} total, {unread_count} unread) ===",
-        "",
-    ]
-    
-    # Show message summaries
-    for msg in messages[:20]:  # Limit to 20
-        timestamp = datetime.fromtimestamp(msg.created_at).strftime("%m/%d %H:%M")
-        status = "NEW" if not msg.read else "   "
-        lines.append(f"[{msg.id:3d}] {status} {timestamp} From: {msg.from_node}")
-        
-        # Show first part of message
-        preview = msg.body[:40].replace("\n", " ")
-        lines.append(f"       {preview}...")
-        lines.append("")
-    
-    if len(messages) > 20:
-        lines.append(f"... and {len(messages) - 20} more messages")
-    
-    lines.append("")
-    lines.append("Type READ <message_id> to read a message")
-    lines.append("Type DELETE <message_id> to delete a message")
-    
-    return "\n".join(lines)
+    # Brief listing - only show IDs
+    ids = [str(msg.id) for msg in messages[:10]]
+    result = f"Msgs: {len(messages)}/{unread_count} unread. IDs: {','.join(ids)}"
+    if len(messages) > 10:
+        result += f" (+{len(messages)-10} more)"
+    return result
 
 
 def HandleDeleteMessage(context: HandlerContext) -> str:
@@ -265,24 +247,6 @@ class PersonalMessagingPlugin(BasePlugin):
         Get help text for personal messaging commands.
         
         Returns:
-            Formatted help string
+            Condensed help string for low bandwidth
         """
-        lines = [
-            "=== Personal Messaging ===",
-            "",
-            "MSG <node_id> <message>",
-            "  Send a personal message to another node",
-            "  Example: MSG !abcd1234 Hello friend!",
-            "",
-            "READ",
-            "  List all your messages",
-            "",
-            "READ <message_id>",
-            "  Read a specific message",
-            "",
-            "DELETE <message_id>",
-            "  Delete a message from your inbox",
-            "",
-        ]
-        
-        return "\n".join(lines)
+        return "MSG <id> <txt> | READ | READ <id> | DELETE <id>"
