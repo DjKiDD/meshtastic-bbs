@@ -287,8 +287,10 @@ class Application:
         
         # Send response back to sender
         if response:
-            self.logger.info(f"Sending response to {from_node}")
-            self.serial_manager.SendTextToNode(from_node, response)
+            self.logger.info(f"Sending response to {from_node}: {response[:50]}...")
+            success = self.serial_manager.SendTextToNode(from_node, response)
+            if not success:
+                self.logger.error(f"Failed to send response to {from_node}")
     
     def Run(self) -> None:
         """
