@@ -13,6 +13,43 @@ A lightweight BBS (Bulletin Board System) server for multiple Meshtastic nodes, 
 
 ## Installation
 
+### Raspberry Pi (Recommended)
+
+On Raspberry Pi OS (Bullseye and later), Python environments are externally managed. Use a virtual environment:
+
+```bash
+# Clone the repository
+git clone https://github.com/DjKiDD/meshtastic-bbs.git
+cd meshtastic-bbs
+
+# Create a virtual environment
+python3 -m venv venv
+
+# Activate the virtual environment
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Copy example config
+cp config.example.yaml config.yaml
+
+# Edit configuration
+nano config.yaml
+
+# Run the BBS
+python -m bbs.Application
+```
+
+To run later:
+```bash
+cd meshtastic-bbs
+source venv/bin/activate
+python -m bbs.Application
+```
+
+### Other Systems
+
 ```bash
 # Clone or download this repository
 cd meshtastic-bbs
