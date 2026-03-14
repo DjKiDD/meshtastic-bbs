@@ -142,12 +142,28 @@ class SerialManager:
             self.logger.error("Meshtastic library not available")
             return
         
+        # First, try to list all serial ports to see what's available
+        try:
+            import serial.tools.list_ports
+            all_ports = list(serial.tools.list_ports.comports())
+            self.logger.info(f"Found {len(all_ports)} serial port(s): {[p.device for p in all_ports]}")
+        except Exception as e:
+            self.logger.warning(f"Could not enumerate serial ports: {e}")
+        
+        # Try using meshtastic's findPorts
         try:
             import meshtastic.util
-            ports = meshtastic.util.findPorts()
+            ports = meshtastic.util.findPorts(True)
         except Exception as e:
-            self.logger.error(f"Failed to detect devices: {e}")
-            return
+            self.logger.error(f"Failed to detect devices with findPorts: {e}")
+            ports = []
+        
+        if not ports:
+            # Try without eliminate_duplicates
+            try:
+                ports = meshtastic.util.findPorts(False)
+            except:
+                ports = []
         
         if not ports:
             self.logger.warning("No Meshtastic devices found")
