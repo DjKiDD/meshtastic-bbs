@@ -378,8 +378,10 @@ class SerialManager:
         for port, device in self.devices.items():
             if device.interface is interface:
                 try:
+                    self.logger.info(f"Sending to {node_id} on {port}, text length: {len(text)}")
+                    # Try with destinationId
                     device.interface.sendText(text, destinationId=node_id, wantAck=False)
-                    self.logger.debug(f"Sent to {node_id} on {port}")
+                    self.logger.info(f"Sent successfully to {node_id}")
                     return True
                 except Exception as e:
                     self.logger.error(f"Failed to send to {node_id} on {port}: {e}")
