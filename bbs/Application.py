@@ -264,33 +264,41 @@ class Application:
             interface: The interface that received the packet
         """
         # Log all packets for debugging
-        self.logger.debug(f"Received packet: {packet}")
+        self.logger.info(f"FULL PACKET: {packet}")
         
         # Get the text content - check multiple possible field names
         text = packet.get('text') or packet.get('payload') or ''
         if not text:
+            self.logger.warning("No text in packet")
             return
         
         # Get source node - check multiple possible field names
         from_node = packet.get('from') or packet.get('fromId') or ''
         if not from_node:
+            self.logger.warning("No from_node in packet")
             return
         
         # Skip our own packets
         if from_node == self.config.GetNodeId():
             return
         
-        self.logger.info(f"Received from {from_node}: {text[:50]}...")
+        self.logger.info(f"Received from {from_node}: '{text}'")
         
         # Route the command
+        self.logger.info(f"Routing command: '{text}'")
         response = self.command_router.RouteCommand(text, from_node, interface)
+        self.logger.info(f"Got response: {response}")
         
         # Send response back to sender
         if response:
-            self.logger.info(f"Sending response to {from_node}: {response[:50]}...")
+            self.logger.info(f"Sending response to {from_node}: '{response}'")
             success = self.serial_manager.SendTextToNode(from_node, response)
-            if not success:
+            if success:
+                self.logger.info(f"Response sent successfully")
+            else:
                 self.logger.error(f"Failed to send response to {from_node}")
+        else:
+            self.logger.warning("No response generated")
     
     def Run(self) -> None:
         """
