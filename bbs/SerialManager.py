@@ -390,8 +390,15 @@ class SerialManager:
                     wantAck=want_ack
                 )
                 
-                if want_ack and sent_packet:
-                    packet_id = sent_packet.get('id')
+                # Check if we got a valid packet response for ACK tracking
+                if want_ack and sent_packet is not None:
+                    # Try to get packet ID - sent_packet might be a dict or have 'id' attribute
+                    packet_id = None
+                    if isinstance(sent_packet, dict):
+                        packet_id = sent_packet.get('id')
+                    elif hasattr(sent_packet, 'id'):
+                        packet_id = sent_packet.id
+                    
                     if packet_id:
                         # Track this packet for ACK
                         ack_event = threading.Event()
@@ -420,7 +427,7 @@ class SerialManager:
                         # No packet ID returned, assume success if no exception
                         success = True
                 else:
-                    # Not waiting for ACK, just check no exception
+                    # Not waiting for ACK or no packet returned, assume success if no exception
                     success = True
                     
                 if success:
