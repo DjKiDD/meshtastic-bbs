@@ -54,6 +54,8 @@ class HangmanGame:
         
         if letter not in self.word:
             self.wrong_guesses += 1
+            if self.wrong_guesses >= self.max_wrong:
+                return f"LOSE! Word: {self.word}"
             return f"Wrong! {letter} not in word | Wrong:{self.wrong_guesses}/{self.max_wrong}"
         
         # Check if won
