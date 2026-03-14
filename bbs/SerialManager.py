@@ -110,7 +110,15 @@ class SerialManager:
         # Subscribe to meshtastic packet events if available
         if MESHTASTIC_AVAILABLE:
             pub.subscribe(self._OnMeshtasticPacket, "meshtastic.receive")
-            pub.subscribe(self._OnMeshtasticAck, "meshtastic.ack")
+            try:
+                pub.subscribe(self._OnMeshtasticAck, "meshtastic.ack")
+            except:
+                self.logger.warning("Could not subscribe to meshtastic.ack")
+            # Also try meshtastic.send.acked as some versions use this
+            try:
+                pub.subscribe(self._OnMeshtasticAck, "meshtastic.send.acked")
+            except:
+                pass
     
     def ConnectAll(self) -> None:
         """
@@ -310,6 +318,17 @@ class SerialManager:
             packet: The received packet dictionary
             interface: The interface that received the packet
         """
+        # Check if this is an ACK (may come through regular receive)
+        ack_field = packet.get('ack') or packet.get('requested_ack')
+        if ack_field:
+            packet_id = packet.get('id')
+            self.logger.info(f"Packet via receive - id: {packet_id}, ack: {ack_field}, pending: {list(self._pending_acks.keys())}")
+            if packet_id and packet_id in self._pending_acks:
+                with self._ack_lock:
+                    self._pending_acks[packet_id]['acked'] = True
+                    self._pending_acks[packet_id]['event'].set()
+                self.logger.info(f"ACK matched via receive for {packet_id}")
+        
         # Forward to registered callback
         if self.packet_callback:
             try:
@@ -327,14 +346,20 @@ class SerialManager:
             packet: The ACK packet dictionary
             interface: The interface that received the ACK
         """
+        self.logger.info(f"ACK received! Packet: {packet}")
+        
         # packet contains 'id' which is the packet ID we sent
         packet_id = packet.get('id')
+        self.logger.info(f"ACK packet_id: {packet_id}, pending: {list(self._pending_acks.keys())}")
+        
         if packet_id and packet_id in self._pending_acks:
             with self._ack_lock:
                 ack_info = self._pending_acks[packet_id]
                 ack_info['acked'] = True
                 ack_info['event'].set()
-            self.logger.debug(f"Received ACK for packet {packet_id}")
+            self.logger.info(f"Matched ACK for packet {packet_id}")
+        else:
+            self.logger.warning(f"ACK packet_id {packet_id} not in pending ACKs")
     
     def SendTextToMesh(self, text: str, channel_index: int = 0) -> bool:
         """
@@ -396,8 +421,12 @@ class SerialManager:
                         if result:
                             if isinstance(result, dict):
                                 packet_id = result.get('id')
+                                self.logger.info(f"Result dict: {result}")
                             elif hasattr(result, 'id'):
                                 packet_id = result.id
+                                self.logger.info(f"Result object id: {packet_id}")
+                        
+                        self.logger.info(f"Got packet_id: {packet_id}, tracking in: {list(self._pending_acks.keys())}")
                         
                         if packet_id:
                             # Track this packet for ACK
