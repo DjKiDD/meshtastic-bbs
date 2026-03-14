@@ -384,18 +384,6 @@ class SerialManager:
                 device.interface.sendText(text, destinationId=node_id, wantAck=False)
                 success = True
                 self.logger.debug(f"Sent to {node_id} on {port}")
-                
-                # Now try to get ACK if requested (don't fail send if ACK tracking fails)
-                if want_ack:
-                    try:
-                        # Try to get packet ID for ACK tracking
-                        # This might fail in some meshtastic versions, that's OK
-                        packet_id = None
-                        # Note: sendText with wantAck=True might return differently
-                        # For now, skip complex ACK tracking to ensure reliability
-                        pass
-                    except Exception as ack_err:
-                        self.logger.debug(f"ACK tracking not available: {ack_err}")
                     
             except Exception as e:
                 self.logger.error(f"Failed to send to {node_id} on {port}: {e}")
