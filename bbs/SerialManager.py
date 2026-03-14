@@ -212,15 +212,24 @@ class SerialManager:
             device.last_error = None
             
             # Get node ID from the radio itself
-            # Try localNode which should be available
+            # Try getMyNodeInfo() which explicitly fetches node info
             try:
-                if hasattr(interface, 'localNode') and interface.localNode:
+                if hasattr(interface, 'getMyNodeInfo'):
+                    my_info = interface.getMyNodeInfo()
+                    if my_info and 'myNodeNum' in my_info:
+                        node_num = my_info['myNodeNum']
+                        if node_num:
+                            node_id = f"!{node_num:08x}"
+                            device.node_id = node_id
+                            self.logger.info(f"Device {label} node ID: {device.node_id}")
+                # Also try localNode as backup
+                if not device.node_id and hasattr(interface, 'localNode') and interface.localNode:
                     node_num = interface.localNode.nodeNum
                     if node_num:
                         node_id = f"!{node_num:08x}"
                         device.node_id = node_id
                         self.logger.info(f"Device {label} node ID: {device.node_id}")
-                # Also try myInfo as backup
+                # Also try myInfo as another backup
                 if not device.node_id and hasattr(interface, 'myInfo') and interface.myInfo and interface.myInfo.myNodeNum:
                     node_num = interface.myInfo.myNodeNum
                     node_id = f"!{node_num:08x}"
