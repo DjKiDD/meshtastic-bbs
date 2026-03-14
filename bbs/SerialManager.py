@@ -365,6 +365,7 @@ class SerialManager:
     def SendTextToNodeOnInterface(self, node_id: str, text: str, interface) -> bool:
         """
         Send a text message to a specific node on a specific interface.
+        Uses retry logic to improve reliability.
         
         Args:
             node_id: Destination node ID
@@ -374,18 +375,25 @@ class SerialManager:
         Returns:
             True if message was sent successfully
         """
+        max_retries = 3
+        retry_delay = 0.3
+        
         # Find the device that has this interface
         for port, device in self.devices.items():
             if device.interface is interface:
-                try:
-                    self.logger.info(f"Sending to {node_id} on {port}, text length: {len(text)}")
-                    # Try with destinationId
-                    device.interface.sendText(text, destinationId=node_id, wantAck=False)
-                    self.logger.info(f"Sent successfully to {node_id}")
-                    return True
-                except Exception as e:
-                    self.logger.error(f"Failed to send to {node_id} on {port}: {e}")
-                    return False
+                for attempt in range(max_retries):
+                    try:
+                        self.logger.info(f"Sending to {node_id} on {port} (attempt {attempt + 1}/{max_retries})")
+                        device.interface.sendText(text, destinationId=node_id, wantAck=False)
+                        self.logger.info(f"Sent successfully to {node_id}")
+                        return True
+                    except Exception as e:
+                        self.logger.warning(f"Send attempt {attempt + 1} failed: {e}")
+                        if attempt < max_retries - 1:
+                            time.sleep(retry_delay)
+                
+                self.logger.error(f"Failed to send to {node_id} after {max_retries} attempts")
+                return False
         
         # Interface not found, try all devices
         self.logger.warning(f"Interface not found, trying all devices")
@@ -394,6 +402,7 @@ class SerialManager:
     def SendTextToNode(self, node_id: str, text: str) -> bool:
         """
         Send a text message to a specific node.
+        Uses retry logic to improve reliability.
         
         Args:
             node_id: Destination node ID
@@ -402,20 +411,24 @@ class SerialManager:
         Returns:
             True if message was sent successfully
         """
+        max_retries = 3
+        retry_delay = 0.3
         success = False
         
         for port, device in self.devices.items():
             if not device.connected or not device.interface:
                 continue
             
-            try:
-                # First, send the message (this is the important part)
-                device.interface.sendText(text, destinationId=node_id, wantAck=False)
-                success = True
-                self.logger.debug(f"Sent to {node_id} on {port}")
-                    
-            except Exception as e:
-                self.logger.error(f"Failed to send to {node_id} on {port}: {e}")
+            for attempt in range(max_retries):
+                try:
+                    device.interface.sendText(text, destinationId=node_id, wantAck=False)
+                    success = True
+                    self.logger.debug(f"Sent to {node_id} on {port} (attempt {attempt + 1})")
+                    break
+                except Exception as e:
+                    self.logger.warning(f"Send attempt {attempt + 1} failed on {port}: {e}")
+                    if attempt < max_retries - 1:
+                        time.sleep(retry_delay)
         
         return success
     
