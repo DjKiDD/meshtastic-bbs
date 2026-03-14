@@ -164,7 +164,7 @@ def StartGame(context: HandlerContext) -> str:
     
     # Get word from database or use default
     try:
-        cursor = context.database.connection.execute(
+        cursor = context.Database.connection.execute(
             "SELECT word FROM hangman_words ORDER BY RANDOM() LIMIT 1"
         )
         row = cursor.fetchone()
@@ -203,21 +203,21 @@ class HangmanPlugin(BasePlugin):
     def CreateTables(self, context: PluginContext) -> None:
         """Create hangman tables if they don't exist."""
         try:
-            context.database.connection.execute("""
+            context.Database.connection.execute("""
                 CREATE TABLE IF NOT EXISTS hangman_words (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     word TEXT UNIQUE NOT NULL,
                     added_at INTEGER NOT NULL
                 )
             """)
-            context.database.connection.commit()
+            context.Database.connection.commit()
         except Exception as e:
             self.logger.warning(f"Table creation: {e}")
     
     def LoadDefaultWords(self, context: PluginContext) -> None:
         """Load default words if table is empty."""
         try:
-            cursor = context.database.connection.execute(
+            cursor = context.Database.connection.execute(
                 "SELECT COUNT(*) as cnt FROM hangman_words"
             )
             row = cursor.fetchone()
@@ -225,13 +225,13 @@ class HangmanPlugin(BasePlugin):
                 now = int(time.time())
                 for word in DEFAULT_WORDS:
                     try:
-                        context.database.connection.execute(
+                        context.Database.connection.execute(
                             "INSERT INTO hangman_words (word, added_at) VALUES (?, ?)",
                             (word, now)
                         )
                     except:
                         pass
-                context.database.connection.commit()
+                context.Database.connection.commit()
                 self.logger.info("Loaded default words")
         except Exception as e:
             self.logger.warning(f"Default words: {e}")
@@ -260,11 +260,11 @@ def HandleAdminHangman(context: HandlerContext, args) -> str:
             return "Word must be 3+ letters"
         try:
             now = int(time.time())
-            context.database.connection.execute(
+            context.Database.connection.execute(
                 "INSERT INTO hangman_words (word, added_at) VALUES (?, ?)",
                 (word, now)
             )
-            context.database.connection.commit()
+            context.Database.connection.commit()
             return f"OK: Added {word}"
         except:
             return f"Error: Word exists"
@@ -274,18 +274,18 @@ def HandleAdminHangman(context: HandlerContext, args) -> str:
             return "Usage: ADMIN DELWORD <word>"
         word = args[0].upper()
         try:
-            context.database.connection.execute(
+            context.Database.connection.execute(
                 "DELETE FROM hangman_words WHERE word = ?",
                 (word,)
             )
-            context.database.connection.commit()
+            context.Database.connection.commit()
             return f"OK: Deleted {word}"
         except:
             return f"Error: Word not found"
     
     elif cmd == "WORDS":
         try:
-            cursor = context.database.connection.execute(
+            cursor = context.Database.connection.execute(
                 "SELECT COUNT(*) as cnt FROM hangman_words"
             )
             row = cursor.fetchone()

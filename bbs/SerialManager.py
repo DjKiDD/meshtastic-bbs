@@ -212,10 +212,25 @@ class SerialManager:
             device.last_error = None
             
             # Get node ID from the radio itself
+            # myNodeNum is numeric, convert to hex string format (!hexstring)
             try:
-                if hasattr(interface, 'myInfo') and interface.myInfo:
-                    device.node_id = interface.myInfo.myId
+                if hasattr(interface, 'myInfo') and interface.myInfo and interface.myInfo.myNodeNum:
+                    node_num = interface.myInfo.myNodeNum
+                    # Convert to hex and prefix with !
+                    node_id = f"!{node_num:08x}"
+                    device.node_id = node_id
                     self.logger.info(f"Device {label} node ID: {device.node_id}")
+                else:
+                    # Try alternate method - get local node
+                    try:
+                        local_node = interface.getNode('^local')
+                        if local_node and local_node.nodeNum:
+                            node_num = local_node.nodeNum
+                            node_id = f"!{node_num:08x}"
+                            device.node_id = node_id
+                            self.logger.info(f"Device {label} node ID: {device.node_id}")
+                    except Exception as e2:
+                        self.logger.warning(f"Could not get node ID from {label}: {e2}")
             except Exception as e:
                 self.logger.warning(f"Could not get node ID from {label}: {e}")
             
