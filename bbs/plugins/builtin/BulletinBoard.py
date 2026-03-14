@@ -64,9 +64,9 @@ def HandlePostToBoard(context: HandlerContext) -> str:
             description=f"Area: {area_name}"
         )
     
-    # Validate message length
-    if len(message_text) > 500:
-        return "Error: Message too long (max 500 characters)"
+    # Validate message length (100 char limit)
+    if len(message_text) > 100:
+        return "Error: Msg too long (max 100 chars)"
     
     # Create post
     post = BbsPost(
@@ -106,9 +106,12 @@ def HandleListAreas(context: HandlerContext) -> str:
     if not areas:
         return "No areas. Post: BBS <area> <msg>"
     
-    # Brief listing
-    area_info = [f"{a.name}({context.database.GetPostCountForArea(a.name)})" for a in areas]
-    return "Areas: " + " ".join(area_info)
+    # Brief listing - limit to 5 areas max
+    area_info = [f"{a.name}({context.database.GetPostCountForArea(a.name)})" for a in areas[:5]]
+    result = "Areas: " + " ".join(area_info)
+    if len(areas) > 5:
+        result += f" +{len(areas)-5} more"
+    return result
 
 
 def HandleReadBoard(context: HandlerContext) -> str:
@@ -145,11 +148,11 @@ def HandleReadBoard(context: HandlerContext) -> str:
     if not posts:
         return f"No posts in {area_name}. Be first: BBS {area_name} <msg>"
     
-    # Brief listing - show last 3 posts with ID and preview
+    # Brief listing - show last 1 post only to stay under 200 chars
     lines = [f"=== {area_name} ({len(posts)} posts) ==="]
-    for post in posts[:3]:
-        preview = post.body[:50].replace("\n", " ")
-        lines.append(f"[{post.id}] {post.from_node}: {preview}...")
+    for post in posts[:1]:
+        preview = post.body[:80].replace("\n", " ")
+        lines.append(f"[{post.id}] {post.from_node}: {preview}")
     
     return "\n".join(lines)
 

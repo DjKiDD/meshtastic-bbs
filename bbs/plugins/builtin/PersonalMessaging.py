@@ -58,9 +58,9 @@ def HandleSendMessage(context: HandlerContext) -> str:
     if not recipient_node.startswith("!"):
         return "Error: Invalid node ID format. Must start with !"
     
-    # Check message length
-    if len(message_text) > 500:
-        return f"Error: Message too long (max 500 characters)"
+    # Check message length (100 char limit for response room)
+    if len(message_text) > 100:
+        return f"Error: Message too long (max 100 chars)"
     
     # Create message record
     message = Message(
@@ -117,8 +117,9 @@ def HandleReadMessages(context: HandlerContext) -> str:
         if message.to_node == context.from_node:
             context.database.MarkMessageAsRead(message_id)
         
-        # Format message - condensed
-        return f"Fr: {message.from_node} | {message.body[:80]}"
+        # Format message - condensed (max 120 chars total)
+        body = message.body[:100]
+        return f"Fr:{message.from_node} | {body}"
     
     # List all messages
     messages = context.database.GetMessagesForNode(context.from_node)
@@ -129,11 +130,11 @@ def HandleReadMessages(context: HandlerContext) -> str:
     # Get unread count
     unread_count = context.database.GetUnreadMessageCount(context.from_node)
     
-    # Brief listing - only show IDs
-    ids = [str(msg.id) for msg in messages[:10]]
-    result = f"Msgs: {len(messages)}/{unread_count} unread. IDs: {','.join(ids)}"
-    if len(messages) > 10:
-        result += f" (+{len(messages)-10} more)"
+    # Brief listing - only show 5 IDs max
+    ids = [str(msg.id) for msg in messages[:5]]
+    result = f"Msgs: {len(messages)}/{unread_count} ur. IDs:{','.join(ids)}"
+    if len(messages) > 5:
+        result += f" (+{len(messages)-5})"
     return result
 
 
