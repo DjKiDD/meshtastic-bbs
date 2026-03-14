@@ -97,6 +97,19 @@ class PluginSettings:
 
 
 @dataclass
+class AdminConfig:
+    """
+    Configuration for admin commands.
+    
+    Attributes:
+        password: Password for admin commands
+        allowed_nodes: List of node IDs that can skip password
+    """
+    password: str = ""
+    allowed_nodes: List[str] = field(default_factory=list)
+
+
+@dataclass
 class Configuration:
     """
     Main configuration container that holds all BBS server settings.
@@ -116,6 +129,7 @@ class Configuration:
     database: DatabaseConfig = field(default_factory=lambda: DatabaseConfig())
     logging: LoggingConfig = field(default_factory=lambda: LoggingConfig())
     plugins: PluginSettings = field(default_factory=lambda: PluginSettings())
+    admin: AdminConfig = field(default_factory=lambda: AdminConfig())
 
     @staticmethod
     def LoadConfiguration(config_path: str) -> 'Configuration':
@@ -192,6 +206,14 @@ class Configuration:
             config.plugins = PluginSettings(
                 enabled=plugin_data.get('enabled', []),
                 settings=plugin_data.get('settings', {})
+            )
+        
+        # Parse admin section
+        if 'admin' in raw_config:
+            admin_data = raw_config['admin']
+            config.admin = AdminConfig(
+                password=admin_data.get('password', ''),
+                allowed_nodes=admin_data.get('allowed_nodes', [])
             )
         
         return config
@@ -297,3 +319,33 @@ class Configuration:
             Count of serial devices
         """
         return len(self.serial_devices)
+    
+    def GetAdminPassword(self) -> str:
+        """
+        Get the admin password.
+        
+        Returns:
+            Admin password string
+        """
+        return self.admin.password
+    
+    def GetAllowedAdminNodes(self) -> List[str]:
+        """
+        Get list of nodes that can bypass admin password.
+        
+        Returns:
+            List of node IDs
+        """
+        return self.admin.allowed_nodes
+    
+    def IsNodeAllowedForAdmin(self, node_id: str) -> bool:
+        """
+        Check if a node can bypass admin password.
+        
+        Args:
+            node_id: Node ID to check
+            
+        Returns:
+            True if node is in allowlist
+        """
+        return node_id in self.admin.allowed_nodes

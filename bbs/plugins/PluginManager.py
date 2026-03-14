@@ -123,6 +123,12 @@ class PluginManager:
         except ImportError as e:
             self.logger.warning(f"Failed to import BulletinBoard plugin: {e}")
         
+        try:
+            from bbs.plugins.builtin.Admin import AdminPlugin
+            plugins[AdminPlugin.Name] = AdminPlugin
+        except ImportError as e:
+            self.logger.warning(f"Failed to import Admin plugin: {e}")
+        
         self.logger.debug(f"Discovered built-in plugins: {list(plugins.keys())}")
         
         return plugins

@@ -106,12 +106,9 @@ def HandleListAreas(context: HandlerContext) -> str:
     if not areas:
         return "No areas. Post: BBS <area> <msg>"
     
-    # Brief listing - limit to 5 areas max
-    area_info = [f"{a.name}({context.database.GetPostCountForArea(a.name)})" for a in areas[:5]]
-    result = "Areas: " + " ".join(area_info)
-    if len(areas) > 5:
-        result += f" +{len(areas)-5} more"
-    return result
+    # Super brief: gen(5) fs(2) help(0)
+    area_info = [f"{a.name}({context.database.GetPostCountForArea(a.name)})" for a in areas[:6]]
+    return " ".join(area_info)
 
 
 def HandleReadBoard(context: HandlerContext) -> str:
@@ -148,13 +145,17 @@ def HandleReadBoard(context: HandlerContext) -> str:
     if not posts:
         return f"No posts in {area_name}. Be first: BBS {area_name} <msg>"
     
-    # Brief listing - show last 1 post only to stay under 200 chars
-    lines = [f"=== {area_name} ({len(posts)} posts) ==="]
+    # Short header and timestamps
+    lines = [f"{area_name}:{len(posts)}"]
     for post in posts[:1]:
-        preview = post.body[:80].replace("\n", " ")
-        lines.append(f"[{post.id}] {post.from_node}: {preview}")
+        # Format: id m/d h:mm from: body
+        from datetime import datetime
+        ts = datetime.fromtimestamp(post.created_at)
+        ts_str = ts.strftime("%m/%d %H:%M")
+        preview = post.body[:60].replace("\n", " ")
+        lines.append(f"{post.id} {ts_str} {post.from_node}: {preview}")
     
-    return "\n".join(lines)
+    return " | ".join(lines)
 
 
 class BulletinBoardPlugin(BasePlugin):

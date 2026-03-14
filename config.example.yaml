@@ -40,6 +40,7 @@ plugins:
   enabled:
     - "personal_messaging"
     - "bulletin_board"
+    - "admin"
   
   # Plugin-specific configuration
   personal_messaging:
@@ -61,3 +62,13 @@ plugins:
         description: "Ask for help"
       - name: "announcements"
         description: "Official announcements"
+
+# Admin Configuration
+admin:
+  # Password for admin commands (optional - nodes in allowed_nodes can skip)
+  password: "secret123"
+  
+  # Nodes that can bypass password (use ADMIN <cmd> without password)
+  allowed_nodes: []
+    # - "!305ec26f"
+    # - "!abcd1234"
