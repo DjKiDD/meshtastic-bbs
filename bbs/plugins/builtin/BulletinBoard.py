@@ -20,120 +20,13 @@ Usage:
 """
 
 import time
+from datetime import datetime
 from bbs.plugins.BasePlugin import BasePlugin, PluginContext
 from bbs.Database import BbsArea, BbsPost
 from bbs.protocol.CommandRouter import HandlerContext
 
 
-class BulletinBoardPlugin(BasePlugin):
-    """
-    Plugin for handling bulletin board posts.
-    
-    This plugin allows nodes to post and read messages in
-    public bulletin board areas (forums).
-    
-    Commands:
-        BBS: Post to a bulletin board area
-        AREAS: List available areas
-        READ: Read posts in an area
-    """
-    
-    # Plugin metadata
-    Name = "bulletin_board"
-    Version = "1.0.0"
-    Description = "Bulletin board system for mesh network"
-    
-    # Command handlers - maps command name to handler method
-    CommandHandlers = {
-        "BBS": HandlePostToBoard,
-        "AREAS": HandleListAreas,
-        "READ": HandleReadBoard,
-    }
-    
-    def OnLoad(self, context: PluginContext) -> None:
-        """
-        Initialize the bulletin board plugin.
-        
-        Called when the plugin is loaded. Sets up the context,
-        creates default areas if configured, and logs initialization.
-        
-        Args:
-            context: Plugin context with database and config access
-        """
-        super().OnLoad(context)
-        
-        # Get plugin-specific config
-        plugin_config = context.GetPluginConfiguration(self.Name)
-        
-        # Get default area
-        self.default_area = plugin_config.get("default_area", "general")
-        
-        # Create default areas from config
-        areas_config = plugin_config.get("areas", [])
-        for area_config in areas_config:
-            # Try to create area (will fail if already exists, which is fine)
-            try:
-                context.database.CreateArea(
-                    name=area_config.get("name", "general"),
-                    description=area_config.get("description", "")
-                )
-                context.logger.debug(f"Created BBS area: {area_config.get('name')}")
-            except Exception:
-                # Area already exists
-                pass
-        
-        self.logger.info(f"Bulletin Board loaded with default area: {self.default_area}")
-    
-    def Migrate(self, database) -> None:
-        """
-        Create default BBS areas on first run.
-        
-        Called during database migration to ensure default
-        areas exist.
-        
-        Args:
-            database: Database instance
-        """
-        # Create default areas if they don't exist
-        default_areas = [
-            {"name": "general", "description": "General discussion"},
-            {"name": "for-sale", "description": "Items for sale or trade"},
-            {"name": "help", "description": "Ask for help"},
-            {"name": "announcements", "description": "Official announcements"},
-        ]
-        
-        for area in default_areas:
-            try:
-                database.CreateArea(area["name"], area["description"])
-            except Exception:
-                # Already exists
-                pass
-    
-    def GetHelpText(self) -> str:
-        """
-        Get help text for bulletin board commands.
-        
-        Returns:
-            Formatted help string
-        """
-        lines = [
-            "=== Bulletin Board ===",
-            "",
-            "BBS <area> <message>",
-            "  Post a message to a bulletin board area",
-            "  Example: BBS for-sale Selling my radio",
-            "",
-            "AREAS",
-            "  List all available BBS areas",
-            "",
-            "READ <area>",
-            "  Read posts in a bulletin board area",
-            "  Example: READ general",
-            "",
-        ]
-        
-        return "\n".join(lines)
-
+# Handler functions - defined before the class that references them
 
 def HandlePostToBoard(context: HandlerContext) -> str:
     """
@@ -285,8 +178,6 @@ def HandleReadBoard(context: HandlerContext) -> str:
     ]
     
     # Show posts (newest first)
-    from datetime import datetime
-    
     for post in posts[:20]:  # Limit to 20 posts
         timestamp = datetime.fromtimestamp(post.created_at).strftime("%Y-%m-%d %H:%M")
         lines.append(f"--- Post #{post.id} by {post.from_node} at {timestamp} ---")
@@ -300,3 +191,113 @@ def HandleReadBoard(context: HandlerContext) -> str:
     lines.append(f"Type BBS {area_name} <message> to reply")
     
     return "\n".join(lines)
+
+
+class BulletinBoardPlugin(BasePlugin):
+    """
+    Plugin for handling bulletin board posts.
+    
+    This plugin allows nodes to post and read messages in
+    public bulletin board areas (forums).
+    
+    Commands:
+        BBS: Post to a bulletin board area
+        AREAS: List available areas
+        READ: Read posts in an area
+    """
+    
+    # Plugin metadata
+    Name = "bulletin_board"
+    Version = "1.0.0"
+    Description = "Bulletin board system for mesh network"
+    
+    # Command handlers - maps command name to handler method
+    CommandHandlers = {
+        "BBS": HandlePostToBoard,
+        "AREAS": HandleListAreas,
+        "READ": HandleReadBoard,
+    }
+    
+    def OnLoad(self, context: PluginContext) -> None:
+        """
+        Initialize the bulletin board plugin.
+        
+        Called when the plugin is loaded. Sets up the context,
+        creates default areas if configured, and logs initialization.
+        
+        Args:
+            context: Plugin context with database and config access
+        """
+        super().OnLoad(context)
+        
+        # Get plugin-specific config
+        plugin_config = context.GetPluginConfiguration(self.Name)
+        
+        # Get default area
+        self.default_area = plugin_config.get("default_area", "general")
+        
+        # Create default areas from config
+        areas_config = plugin_config.get("areas", [])
+        for area_config in areas_config:
+            # Try to create area (will fail if already exists, which is fine)
+            try:
+                context.database.CreateArea(
+                    name=area_config.get("name", "general"),
+                    description=area_config.get("description", "")
+                )
+                context.logger.debug(f"Created BBS area: {area_config.get('name')}")
+            except Exception:
+                # Area already exists
+                pass
+        
+        self.logger.info(f"Bulletin Board loaded with default area: {self.default_area}")
+    
+    def Migrate(self, database) -> None:
+        """
+        Create default BBS areas on first run.
+        
+        Called during database migration to ensure default
+        areas exist.
+        
+        Args:
+            database: Database instance
+        """
+        # Create default areas if they don't exist
+        default_areas = [
+            {"name": "general", "description": "General discussion"},
+            {"name": "for-sale", "description": "Items for sale or trade"},
+            {"name": "help", "description": "Ask for help"},
+            {"name": "announcements", "description": "Official announcements"},
+        ]
+        
+        for area in default_areas:
+            try:
+                database.CreateArea(area["name"], area["description"])
+            except Exception:
+                # Already exists
+                pass
+    
+    def GetHelpText(self) -> str:
+        """
+        Get help text for bulletin board commands.
+        
+        Returns:
+            Formatted help string
+        """
+        lines = [
+            "=== Bulletin Board ===",
+            "",
+            "BBS <area> <message>",
+            "  Post a message to a bulletin board area",
+            "  Example: BBS for-sale Selling my radio",
+            "",
+            "AREAS",
+            "  List all available BBS areas",
+            "",
+            "READ <area>",
+            "  Read posts in a bulletin board area",
+            "  Example: READ general",
+            "",
+        ]
+        
+        return "\n".join(lines)
