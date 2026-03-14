@@ -263,12 +263,16 @@ class Application:
             packet: The received packet dictionary
             interface: The interface that received the packet
         """
-        # Log all packets for debugging
-        self.logger.info(f"FULL PACKET: {packet}")
+        # Only process TEXT_MESSAGE_APP packets
+        decoded = packet.get('decoded', {})
+        portnum = decoded.get('portnum', '')
+        
+        if portnum != 'TEXT_MESSAGE_APP':
+            # Skip telemetry, position, nodeinfo, routing packets
+            return
         
         # Get the text content - check decoded.text first (meshtastic stores it there)
-        decoded = packet.get('decoded', {})
-        text = packet.get('text') or decoded.get('text') or decoded.get('payload', b'').decode('utf-8', errors='ignore') if isinstance(decoded.get('payload'), bytes) else ''
+        text = packet.get('text') or decoded.get('text') or ''
         
         # Clean up text if it's in bytes
         if isinstance(text, bytes):
@@ -284,11 +288,6 @@ class Application:
         # Get source node - check fromId first
         from_node = packet.get('fromId') or str(packet.get('from', ''))
         
-        # Also check decoded.user for the ID
-        if not from_node or from_node == '4294967295':
-            decoded_user = decoded.get('user', {})
-            from_node = decoded_user.get('id', '')
-        
         if not from_node:
             self.logger.warning("No from_node in packet")
             return
@@ -300,9 +299,7 @@ class Application:
         self.logger.info(f"Received from {from_node}: '{text}'")
         
         # Route the command
-        self.logger.info(f"Routing command: '{text}'")
         response = self.command_router.RouteCommand(text, from_node, interface)
-        self.logger.info(f"Got response: {response}")
         
         # Send response back to sender
         if response:

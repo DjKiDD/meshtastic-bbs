@@ -168,8 +168,8 @@ class Database:
         db_path = Path(self.database_path)
         db_path.parent.mkdir(parents=True, exist_ok=True)
         
-        # Connect to database
-        self.connection = sqlite3.connect(self.database_path)
+        # Connect to database (check_same_thread=False allows access from multiple threads)
+        self.connection = sqlite3.connect(self.database_path, check_same_thread=False)
         self.connection.row_factory = sqlite3.Row
         
         # Enable foreign keys
