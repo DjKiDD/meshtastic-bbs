@@ -70,7 +70,7 @@ fi
 # Create directories for database and logs
 echo "Creating data directories..."
 mkdir -p "$(dirname "$(grep 'path:' config.yaml 2>/dev/null | head -1 | cut -d' ' -f2)" 2>/dev/null || echo "/var/lib/meshtastic-bbs")"
-mkdir -p "$(dirname "$(grep 'file:' config.yaml 2>/dev/null | head -1 | cut -d' ' -f2)" 2>/dev/null || echo "/var/log/meshtastic-bbs")""
+mkdir -p "$(dirname "$(grep 'file:' config.yaml 2>/dev/null | head -1 | cut -d' ' -f2)" 2>/dev/null || echo "/var/log/meshtastic-bbs")"
 
 echo ""
 echo "========================================="
