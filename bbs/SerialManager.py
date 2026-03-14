@@ -61,11 +61,13 @@ class SerialDevice:
         interface: The SerialInterface instance (if connected)
         connected: Whether the device is currently connected
         last_error: Last error message (if any)
+        node_id: The node ID of this radio (from the radio itself)
     """
     config: SerialDeviceConfig
     interface: Optional[Any] = None
     connected: bool = False
     last_error: Optional[str] = None
+    node_id: Optional[str] = None
 
 
 class SerialManager:
@@ -208,6 +210,14 @@ class SerialManager:
             device.interface = interface
             device.connected = True
             device.last_error = None
+            
+            # Get node ID from the radio itself
+            try:
+                if hasattr(interface, 'myInfo') and interface.myInfo:
+                    device.node_id = interface.myInfo.myId
+                    self.logger.info(f"Device {label} node ID: {device.node_id}")
+            except Exception as e:
+                self.logger.warning(f"Could not get node ID from {label}: {e}")
             
             self.logger.info(f"Connected to device: {label}")
             
@@ -424,3 +434,27 @@ class SerialManager:
             True if meshtastic is installed, False otherwise
         """
         return MESHTASTIC_AVAILABLE
+    
+    def GetNodeIdForInterface(self, interface) -> Optional[str]:
+        """
+        Get the node ID for the device that received a packet.
+        
+        Args:
+            interface: The interface that received the packet
+            
+        Returns:
+            Node ID string, or None if not found
+        """
+        for port, device in self.devices.items():
+            if device.interface is interface:
+                return device.node_id
+        return None
+    
+    def GetAllNodeIds(self) -> List[str]:
+        """
+        Get all node IDs for connected devices.
+        
+        Returns:
+            List of node ID strings
+        """
+        return [d.node_id for d in self.devices.values() if d.node_id]

@@ -48,11 +48,11 @@ class BbsConfig:
     Configuration for the BBS node itself.
     
     Attributes:
-        node_id: This BBS's unique node ID in Meshtastic format
+        node_id: This BBS's unique node ID (optional - pulled from radio if empty)
         name: Human-readable name for the BBS
         description: Description shown in HELP command
     """
-    node_id: str
+    node_id: str = ""  # Optional - will be pulled from radio if not set
     name: str = "MeshBBS"
     description: str = "Meshtastic Bulletin Board System"
 

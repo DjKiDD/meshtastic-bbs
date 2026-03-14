@@ -208,7 +208,11 @@ class Application:
         print("\n" + "=" * 50)
         print("BBS Server Started!")
         print("=" * 50)
-        print(f"Node ID: {self.config.GetNodeId()}")
+        all_node_ids = self.serial_manager.GetAllNodeIds()
+        if all_node_ids:
+            print(f"Node IDs: {', '.join(all_node_ids)}")
+        else:
+            print("Node ID: (waiting for connection...)")
         print(f"Name: {self.config.GetBbsName()}")
         print(f"Plugins: {', '.join(self.plugin_manager.GetLoadedPluginNames())}")
         print("=" * 50)
@@ -292,13 +296,19 @@ class Application:
             self.logger.warning("No from_node in packet")
             return
         
-        # Skip our own packets
-        if from_node == self.config.GetNodeId():
+        # Get the node ID of THIS device (the one that received the packet)
+        bbs_node_id = self.serial_manager.GetNodeIdForInterface(interface)
+        if not bbs_node_id:
+            self.logger.warning("Could not determine BBS node ID from interface")
             return
         
-        # Check if this is a direct message to BBS or a broadcast
+        # Skip our own packets (sent from any of our node IDs)
+        all_our_node_ids = self.serial_manager.GetAllNodeIds()
+        if from_node in all_our_node_ids:
+            return
+        
+        # Check if this is a direct message to THIS BBS node or a broadcast
         to_id = packet.get('toId', '')
-        bbs_node_id = self.config.GetNodeId()
         is_direct_message = (to_id == bbs_node_id)
         
         # If not a direct message (i.e., broadcast to channel), check if we should respond

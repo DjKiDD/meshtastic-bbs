@@ -3,8 +3,9 @@
 
 # BBS Node Settings
 bbs:
-  # This BBS's node ID (must be valid Meshtastic node ID format)
-  node_id: "!bbs0001"
+  # Node ID - leave empty to auto-detect from connected radios
+  # If empty, the BBS will use the node ID from each connected radio
+  node_id: ""
   
   # Human-readable name for this BBS
   name: "MeshBBS"
