@@ -373,10 +373,11 @@ class SerialManager:
             interface: The interface to send on
             
         Returns:
-            True if message was sent successfully
+            True if message was ACKNOWLEDGED by recipient
         """
         max_retries = 3
         retry_delay = 0.5
+        ack_timeout = 5.0
         
         # Convert node_id to node number if needed
         dest_id = self._convertNodeId(node_id)
@@ -387,16 +388,41 @@ class SerialManager:
                 for attempt in range(max_retries):
                     try:
                         self.logger.info(f"Sending to {node_id} ({dest_id}) on {port} (attempt {attempt + 1}/{max_retries})")
-                        # Use wantAck=True for reliability, convert to node number
+                        
+                        # Create ACK event
+                        ack_event = threading.Event()
+                        import random
+                        packet_id = random.randint(1000000, 9999999)
+                        
+                        with self._ack_lock:
+                            self._pending_acks[packet_id] = {
+                                'node_id': node_id,
+                                'event': ack_event,
+                                'acked': False
+                            }
+                        
+                        # Send with wantAck
                         device.interface.sendText(text, destinationId=dest_id, wantAck=True)
-                        self.logger.info(f"Sent successfully to {node_id}")
-                        return True
+                        
+                        # Wait for ACK
+                        if ack_event.wait(timeout=ack_timeout):
+                            with self._ack_lock:
+                                if packet_id in self._pending_acks:
+                                    if self._pending_acks[packet_id]['acked']:
+                                        self.logger.info(f"ACK received for {node_id}")
+                                        del self._pending_acks[packet_id]
+                                        return True
+                                    del self._pending_acks[packet_id]
+                        
+                        # No ACK received
+                        self.logger.warning(f"No ACK received for {node_id}, retrying...")
+                        
                     except Exception as e:
                         self.logger.warning(f"Send attempt {attempt + 1} failed: {e}")
                         if attempt < max_retries - 1:
                             time.sleep(retry_delay)
                 
-                self.logger.error(f"Failed to send to {node_id} after {max_retries} attempts")
+                self.logger.error(f"Failed to send to {node_id} after {max_retries} attempts - no ACK")
                 return False
         
         # Interface not found, try all devices
@@ -421,18 +447,18 @@ class SerialManager:
     def SendTextToNode(self, node_id: str, text: str) -> bool:
         """
         Send a text message to a specific node.
-        Uses retry logic to improve reliability.
+        Waits for ACK before returning success.
         
         Args:
             node_id: Destination node ID
             text: Message text to send
             
         Returns:
-            True if message was sent successfully
+            True if message was ACKNOWLEDGED by recipient
         """
         max_retries = 3
         retry_delay = 0.5
-        success = False
+        ack_timeout = 5.0
         
         # Convert node_id to node number if needed
         dest_id = self._convertNodeId(node_id)
@@ -443,16 +469,39 @@ class SerialManager:
             
             for attempt in range(max_retries):
                 try:
+                    # Create ACK event
+                    ack_event = threading.Event()
+                    import random
+                    packet_id = random.randint(1000000, 9999999)
+                    
+                    with self._ack_lock:
+                        self._pending_acks[packet_id] = {
+                            'node_id': node_id,
+                            'event': ack_event,
+                            'acked': False
+                        }
+                    
                     device.interface.sendText(text, destinationId=dest_id, wantAck=True)
-                    success = True
-                    self.logger.debug(f"Sent to {node_id} on {port} (attempt {attempt + 1})")
-                    break
+                    
+                    # Wait for ACK
+                    if ack_event.wait(timeout=ack_timeout):
+                        with self._ack_lock:
+                            if packet_id in self._pending_acks:
+                                if self._pending_acks[packet_id]['acked']:
+                                    self.logger.debug(f"ACK received for {node_id}")
+                                    del self._pending_acks[packet_id]
+                                    return True
+                                del self._pending_acks[packet_id]
+                    
+                    self.logger.warning(f"No ACK for {node_id}, retrying...")
+                    
                 except Exception as e:
                     self.logger.warning(f"Send attempt {attempt + 1} failed on {port}: {e}")
                     if attempt < max_retries - 1:
                         time.sleep(retry_delay)
         
-        return success
+        self.logger.error(f"Failed to get ACK from {node_id} after {max_retries} attempts")
+        return False
     
     def GetConnectedDeviceCount(self) -> int:
         """
