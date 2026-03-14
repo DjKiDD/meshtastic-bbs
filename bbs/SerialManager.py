@@ -107,18 +107,9 @@ class SerialManager:
         self._pending_acks: Dict[int, Dict] = {}
         self._ack_lock = threading.Lock()
         
-        # Subscribe to meshtastic packet events if available
+        # Subscribe to meshtastic packet events - ACKs come through regular receive
         if MESHTASTIC_AVAILABLE:
             pub.subscribe(self._OnMeshtasticPacket, "meshtastic.receive")
-            try:
-                pub.subscribe(self._OnMeshtasticAck, "meshtastic.ack")
-            except:
-                self.logger.warning("Could not subscribe to meshtastic.ack")
-            # Also try meshtastic.send.acked as some versions use this
-            try:
-                pub.subscribe(self._OnMeshtasticAck, "meshtastic.send.acked")
-            except:
-                pass
     
     def ConnectAll(self) -> None:
         """
@@ -318,16 +309,30 @@ class SerialManager:
             packet: The received packet dictionary
             interface: The interface that received the packet
         """
-        # Check if this is an ACK (may come through regular receive)
-        ack_field = packet.get('ack') or packet.get('requested_ack')
-        if ack_field:
-            packet_id = packet.get('id')
-            self.logger.info(f"Packet via receive - id: {packet_id}, ack: {ack_field}, pending: {list(self._pending_acks.keys())}")
-            if packet_id and packet_id in self._pending_acks:
-                with self._ack_lock:
-                    self._pending_acks[packet_id]['acked'] = True
-                    self._pending_acks[packet_id]['event'].set()
-                self.logger.info(f"ACK matched via receive for {packet_id}")
+        # Check if this is an ACK/NAK via routing packet
+        # ACKs come through regular meshtastic.receive with decoded.routing field
+        packet_id = packet.get('id')
+        
+        if packet_id and 'decoded' in packet:
+            decoded = packet.get('decoded', {})
+            routing = decoded.get('routing', {})
+            
+            if routing:
+                error_reason = routing.get('errorReason', 'NONE')
+                self.logger.info(f"Routing packet received - id: {packet_id}, errorReason: '{error_reason}', pending: {list(self._pending_acks.keys())}")
+                
+                if packet_id in self._pending_acks:
+                    if error_reason == 'NONE':
+                        # ACK received
+                        with self._ack_lock:
+                            self._pending_acks[packet_id]['acked'] = True
+                            self._pending_acks[packet_id]['event'].set()
+                        self.logger.info(f"ACK matched for packet {packet_id}")
+                    else:
+                        # NAK received
+                        with self._ack_lock:
+                            self._pending_acks[packet_id]['event'].set()
+                        self.logger.warning(f"NAK matched for packet {packet_id}: {error_reason}")
         
         # Forward to registered callback
         if self.packet_callback:
@@ -335,31 +340,6 @@ class SerialManager:
                 self.packet_callback(packet, interface)
             except Exception as e:
                 self.logger.error(f"Error in packet callback: {e}")
-    
-    def _OnMeshtasticAck(self, packet: dict, interface) -> None:
-        """
-        Internal callback for Meshtastic ACK events.
-        
-        This is called when we receive an ACK for a message we sent.
-        
-        Args:
-            packet: The ACK packet dictionary
-            interface: The interface that received the ACK
-        """
-        self.logger.info(f"ACK received! Packet: {packet}")
-        
-        # packet contains 'id' which is the packet ID we sent
-        packet_id = packet.get('id')
-        self.logger.info(f"ACK packet_id: {packet_id}, pending: {list(self._pending_acks.keys())}")
-        
-        if packet_id and packet_id in self._pending_acks:
-            with self._ack_lock:
-                ack_info = self._pending_acks[packet_id]
-                ack_info['acked'] = True
-                ack_info['event'].set()
-            self.logger.info(f"Matched ACK for packet {packet_id}")
-        else:
-            self.logger.warning(f"ACK packet_id {packet_id} not in pending ACKs")
     
     def SendTextToMesh(self, text: str, channel_index: int = 0) -> bool:
         """
@@ -390,7 +370,7 @@ class SerialManager:
     def SendTextToNodeOnInterface(self, node_id: str, text: str, interface) -> bool:
         """
         Send a text message to a specific node on a specific interface.
-        Uses ACK polling for reliable delivery.
+        Uses ACK detection via receive callback for reliable delivery.
         
         Args:
             node_id: Destination node ID (can be !hexstring or plain hex)
@@ -414,33 +394,59 @@ class SerialManager:
                     try:
                         self.logger.info(f"Sending to {node_id} ({dest_id}) on {port} (attempt {attempt + 1}/{max_retries})")
                         
-                        # Send with wantAck=True
-                        device.interface.sendText(
+                        # Send with wantAck=True and get the packet ID
+                        result = device.interface.sendText(
                             text, 
                             destinationId=dest_id, 
                             wantAck=True
                         )
                         
-                        # Poll for ACK
+                        # Get packet ID from result
+                        packet_id = None
+                        if result:
+                            if isinstance(result, dict):
+                                packet_id = result.get('id')
+                            elif hasattr(result, 'id'):
+                                packet_id = result.id
+                        
+                        if not packet_id:
+                            self.logger.warning(f"No packet ID returned, assuming sent")
+                            return True
+                        
+                        self.logger.info(f"Tracking packet ID {packet_id} for ACK")
+                        
+                        # Track this packet for ACK
+                        ack_event = threading.Event()
+                        with self._ack_lock:
+                            self._pending_acks[packet_id] = {
+                                'node_id': node_id,
+                                'event': ack_event,
+                                'acked': False
+                            }
+                        
+                        # Wait for ACK (via receive callback)
                         start_time = time.time()
                         while time.time() - start_time < ack_timeout:
-                            # Check for explicit ACK or implicit ACK
-                            if (interface._acknowledgment.receivedAck or 
-                                interface._acknowledgment.receivedImplAck):
-                                interface._acknowledgment.reset()
-                                self.logger.info(f"ACK received for {node_id}")
-                                return True
-                            
-                            # Check for NAK - will need to retry
-                            if interface._acknowledgment.receivedNak:
-                                interface._acknowledgment.reset()
-                                self.logger.warning(f"NAK received for {node_id}, retrying...")
-                                break
+                            if ack_event.is_set():
+                                with self._ack_lock:
+                                    if packet_id in self._pending_acks:
+                                        if self._pending_acks[packet_id]['acked']:
+                                            self.logger.info(f"ACK received for packet {packet_id}")
+                                            del self._pending_acks[packet_id]
+                                            return True
+                                        else:
+                                            # NAK received
+                                            self.logger.warning(f"NAK received for packet {packet_id}")
+                                            del self._pending_acks[packet_id]
+                                            break
                             
                             time.sleep(poll_interval)
                         
-                        # Timeout - retry
-                        self.logger.warning(f"No ACK/NAK for {node_id}, retrying...")
+                        # Timeout - clean up and retry
+                        with self._ack_lock:
+                            if packet_id in self._pending_acks:
+                                del self._pending_acks[packet_id]
+                        self.logger.warning(f"Timeout waiting for ACK for {node_id}, retrying...")
                         
                     except Exception as e:
                         self.logger.warning(f"Send attempt {attempt + 1} failed: {e}")
