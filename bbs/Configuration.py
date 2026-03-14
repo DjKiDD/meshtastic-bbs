@@ -110,6 +110,19 @@ class AdminConfig:
 
 
 @dataclass
+class ChannelConfig:
+    """
+    Configuration for default channel response behavior.
+    
+    Attributes:
+        respond_to_channel: Whether to respond to messages on default channel
+        allowed_commands: List of commands allowed on default channel
+    """
+    respond_to_channel: bool = True
+    allowed_commands: List[str] = field(default_factory=lambda: ["BBS", "HELP", "AREAS", "WHOAMI"])
+
+
+@dataclass
 class Configuration:
     """
     Main configuration container that holds all BBS server settings.
@@ -130,6 +143,7 @@ class Configuration:
     logging: LoggingConfig = field(default_factory=lambda: LoggingConfig())
     plugins: PluginSettings = field(default_factory=lambda: PluginSettings())
     admin: AdminConfig = field(default_factory=lambda: AdminConfig())
+    channel: ChannelConfig = field(default_factory=lambda: ChannelConfig())
 
     @staticmethod
     def LoadConfiguration(config_path: str) -> 'Configuration':
@@ -214,6 +228,14 @@ class Configuration:
             config.admin = AdminConfig(
                 password=admin_data.get('password', ''),
                 allowed_nodes=admin_data.get('allowed_nodes', [])
+            )
+        
+        # Parse channel section
+        if 'channel' in raw_config:
+            channel_data = raw_config['channel']
+            config.channel = ChannelConfig(
+                respond_to_channel=channel_data.get('respond_to_channel', True),
+                allowed_commands=channel_data.get('allowed_commands', ["BBS", "HELP", "AREAS", "WHOAMI"])
             )
         
         return config
@@ -349,3 +371,30 @@ class Configuration:
             True if node is in allowlist
         """
         return node_id in self.admin.allowed_nodes
+    
+    def GetChannelConfig(self) -> ChannelConfig:
+        """
+        Get the channel configuration.
+        
+        Returns:
+            ChannelConfig object
+        """
+        return self.channel
+    
+    def ShouldRespondToChannel(self) -> bool:
+        """
+        Check if BBS should respond to messages on default channel.
+        
+        Returns:
+            True if channel responses are enabled
+        """
+        return self.channel.respond_to_channel
+    
+    def GetAllowedChannelCommands(self) -> List[str]:
+        """
+        Get list of commands allowed on default channel.
+        
+        Returns:
+            List of command names
+        """
+        return self.channel.allowed_commands

@@ -296,6 +296,25 @@ class Application:
         if from_node == self.config.GetNodeId():
             return
         
+        # Check if this is a direct message to BBS or a broadcast
+        to_id = packet.get('toId', '')
+        bbs_node_id = self.config.GetNodeId()
+        is_direct_message = (to_id == bbs_node_id)
+        
+        # If not a direct message (i.e., broadcast to channel), check if we should respond
+        if not is_direct_message:
+            channel_config = self.config.GetChannelConfig()
+            if not channel_config.respond_to_channel:
+                # Channel responses disabled - ignore broadcast
+                self.logger.debug(f"Ignoring broadcast - channel responses disabled")
+                return
+            
+            # Check if command is allowed on channel
+            cmd = text.strip().upper().split()[0] if text.strip() else ''
+            if cmd not in channel_config.allowed_commands:
+                self.logger.debug(f"Ignoring broadcast - '{cmd}' not in allowed commands")
+                return
+        
         self.logger.info(f"Received from {from_node}: '{text}'")
         
         # Route the command

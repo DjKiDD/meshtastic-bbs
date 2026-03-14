@@ -73,3 +73,16 @@ admin:
   allowed_nodes: []
     # - "!305ec26f"
     # - "!abcd1234"
+
+# Channel (default channel) Response Settings
+channel:
+  # Respond to messages on default channel (if false, only respond to private messages)
+  respond_to_channel: true
+  
+  # Commands allowed on default channel (public info commands)
+  # Only used when respond_to_channel is true
+  allowed_commands:
+    - "BBS"
+    - "HELP"
+    - "AREAS"
+    - "WHOAMI"
