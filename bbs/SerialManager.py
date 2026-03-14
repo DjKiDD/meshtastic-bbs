@@ -109,6 +109,7 @@ class SerialManager:
         Connect to all configured serial devices.
         
         This function:
+        - If no devices configured, auto-detect Meshtastic devices
         - Iterates over all configured serial devices
         - Attempts to connect to each one
         - Stores the interface for later use
@@ -119,13 +120,46 @@ class SerialManager:
         """
         devices = self.config.GetSerialDevices()
         
+        # If no devices configured, auto-detect
         if not devices:
-            self.logger.warning("No serial devices configured")
+            self.logger.info("No serial devices configured, auto-detecting...")
+            self._AutoDetectDevices()
             return
         
         self.logger.info(f"Connecting to {len(devices)} serial device(s)...")
         
         for device_config in devices:
+            self.ConnectDevice(device_config)
+    
+    def _AutoDetectDevices(self) -> None:
+        """
+        Auto-detect Meshtastic devices on the system.
+        
+        Uses meshtastic's built-in device discovery to find
+        all connected Meshtastic devices.
+        """
+        if not MESHTASTIC_AVAILABLE:
+            self.logger.error("Meshtastic library not available")
+            return
+        
+        try:
+            import meshtastic.util
+            ports = meshtastic.util.findPorts()
+        except Exception as e:
+            self.logger.error(f"Failed to detect devices: {e}")
+            return
+        
+        if not ports:
+            self.logger.warning("No Meshtastic devices found")
+            return
+        
+        self.logger.info(f"Found {len(ports)} Meshtastic device(s): {ports}")
+        
+        for port in ports:
+            device_config = SerialDeviceConfig(
+                port=port,
+                label=port.split('/')[-1]  # Use device name as label
+            )
             self.ConnectDevice(device_config)
     
     def ConnectDevice(self, device_config: SerialDeviceConfig) -> bool:

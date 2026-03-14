@@ -13,18 +13,16 @@ bbs:
   description: "Meshtastic Bulletin Board System"
 
 # Serial Device Configuration
+# Leave empty to auto-detect Meshtastic devices
+# Or specify explicit ports:
 serial:
   # List of Meshtastic devices to connect
-  devices:
-    # First device
-    - port: "/dev/ttyUSB0"
-      label: "primary_node"
-      # Optional: specific channel index to listen on
-      channel_index: 0
-    
-    # Second device (uncomment if needed)
-    # - port: "/dev/ttyUSB1"
-    #   label: "secondary_node"
+  devices: []
+    # First device (example)
+    # - port: "/dev/ttyUSB0"
+    #   label: "primary_node"
+    #   # Optional: specific channel index to listen on
+    #   channel_index: 0
 
 # Database Settings
 database:
