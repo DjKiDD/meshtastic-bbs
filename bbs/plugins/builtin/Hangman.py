@@ -106,6 +106,7 @@ def HandleHangmanCommand(context: HandlerContext) -> str:
         return "HANG | GUESS <L> | WORD <w> | HINT"
     
     cmd = args[0].upper()
+    context.logger.info(f"Hangman command: {cmd} from {context.from_node}")
     
     # Start new game
     if cmd in ("HANGMAN", "HANG", "NEW"):
@@ -169,6 +170,7 @@ def StartGame(context: HandlerContext) -> str:
     else:
         db = context.Database
     
+    word = None
     try:
         cursor = db.connection.execute(
             "SELECT word FROM hangman_words ORDER BY RANDOM() LIMIT 1"
@@ -176,10 +178,12 @@ def StartGame(context: HandlerContext) -> str:
         row = cursor.fetchone()
         if row:
             word = row['word']
-        else:
-            word = random.choice(DEFAULT_WORDS)
-    except:
+    except Exception as e:
+        context.logger.warning(f"Failed to get word from DB: {e}")
+    
+    if not word:
         word = random.choice(DEFAULT_WORDS)
+        context.logger.info(f"Using default word: {word}")
     
     # Create new game
     game = HangmanGame(word, context.from_node)
