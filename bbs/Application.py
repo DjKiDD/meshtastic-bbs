@@ -323,6 +323,8 @@ class Application:
         # Send response back to sender
         if response:
             self.logger.info(f"Sending response to {from_node}: '{response}'")
+            # Small delay to avoid overwhelming the radio
+            time.sleep(0.1)
             success = self.serial_manager.SendTextToNode(from_node, response)
             if success:
                 self.logger.info(f"Response sent successfully")
