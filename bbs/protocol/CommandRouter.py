@@ -208,7 +208,6 @@ class CommandRouter:
         """
         # Get BBS info
         bbs_name = self.configuration.GetBbsName()
-        bbs_node = self.configuration.GetNodeId()
         
         # If specific command help requested
         if context.arguments:
@@ -220,8 +219,10 @@ class CommandRouter:
             else:
                 return f"Unknown: {command}"
         
-        # Otherwise show brief command list
-        return f"{bbs_name} cmds: PING HELP MSG READ AREAS BBS"
+        # Otherwise show brief command list from all loaded commands
+        cmds = sorted(self.command_handlers.keys())
+        cmd_list = " ".join(cmds)
+        return f"{bbs_name} cmds: {cmd_list}"
     
     def HandlePingCommand(self, context: 'HandlerContext') -> str:
         """
