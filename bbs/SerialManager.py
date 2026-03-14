@@ -390,6 +390,7 @@ class SerialManager:
     def SendTextToNodeOnInterface(self, node_id: str, text: str, interface) -> bool:
         """
         Send a text message to a specific node on a specific interface.
+        Uses ACK polling for reliable delivery.
         
         Args:
             node_id: Destination node ID (can be !hexstring or plain hex)
@@ -397,24 +398,58 @@ class SerialManager:
             interface: The interface to send on
             
         Returns:
-            True if message was sent (no exception)
+            True if message was acknowledged by recipient
         """
+        max_retries = 3
+        ack_timeout = 10.0  # seconds to wait for ACK
+        poll_interval = 0.5  # seconds between polls
+        
         # Convert node_id to node number if needed
         dest_id = self._convertNodeId(node_id)
         
         # Find the device that has this interface
         for port, device in self.devices.items():
             if device.interface is interface:
-                try:
-                    self.logger.info(f"Sending to {node_id} ({dest_id}) on {port}")
-                    # Don't use wantAck - mesh ACKs are unreliable in this setup
-                    # Just send and assume success if no exception
-                    device.interface.sendText(text, destinationId=dest_id, wantAck=False)
-                    self.logger.info(f"Sent to {node_id}")
-                    return True
-                except Exception as e:
-                    self.logger.error(f"Failed to send to {node_id}: {e}")
-                    return False
+                for attempt in range(max_retries):
+                    try:
+                        self.logger.info(f"Sending to {node_id} ({dest_id}) on {port} (attempt {attempt + 1}/{max_retries})")
+                        
+                        # Send with wantAck=True
+                        device.interface.sendText(
+                            text, 
+                            destinationId=dest_id, 
+                            wantAck=True
+                        )
+                        
+                        # Poll for ACK
+                        start_time = time.time()
+                        while time.time() - start_time < ack_timeout:
+                            # Check for explicit ACK or implicit ACK
+                            if (interface._acknowledgment.receivedAck or 
+                                interface._acknowledgment.receivedImplAck):
+                                interface._acknowledgment.reset()
+                                self.logger.info(f"ACK received for {node_id}")
+                                return True
+                            
+                            # Check for NAK - will need to retry
+                            if interface._acknowledgment.receivedNak:
+                                interface._acknowledgment.reset()
+                                self.logger.warning(f"NAK received for {node_id}, retrying...")
+                                break
+                            
+                            time.sleep(poll_interval)
+                        
+                        # Timeout - retry
+                        self.logger.warning(f"No ACK/NAK for {node_id}, retrying...")
+                        
+                    except Exception as e:
+                        self.logger.warning(f"Send attempt {attempt + 1} failed: {e}")
+                    
+                    # Brief delay before retry
+                    time.sleep(0.2)
+                
+                self.logger.error(f"Failed to get ACK from {node_id} after {max_retries} attempts")
+                return False
         
         # Interface not found, try all devices
         self.logger.warning(f"Interface not found, trying all devices")
