@@ -74,15 +74,8 @@ def HandleSendMessage(context: HandlerContext) -> str:
     # Save to database
     message_id = context.database.SaveMessage(message)
     
-    # Build response to sender
-    response_lines = [
-        f"Message sent to {recipient_node}",
-        f"Message ID: {message_id}",
-        "",
-        f"Message: {message_text[:100]}..." if len(message_text) > 100 else f"Message: {message_text}",
-    ]
-    
-    return "\n".join(response_lines)
+    # Brief confirmation
+    return f"Sent to {recipient_node} (ID:{message_id})"
 
 
 def HandleReadMessages(context: HandlerContext) -> str:
@@ -124,18 +117,8 @@ def HandleReadMessages(context: HandlerContext) -> str:
         if message.to_node == context.from_node:
             context.database.MarkMessageAsRead(message_id)
         
-        # Format message
-        timestamp = datetime.fromtimestamp(message.created_at).strftime("%Y-%m-%d %H:%M")
-        
-        lines = [
-            f"=== Message {message_id} ===",
-            f"From: {message.from_node}",
-            f"Date: {timestamp}",
-            "",
-            message.body,
-        ]
-        
-        return "\n".join(lines)
+        # Format message - condensed
+        return f"Fr: {message.from_node} | {message.body[:80]}"
     
     # List all messages
     messages = context.database.GetMessagesForNode(context.from_node)

@@ -79,13 +79,8 @@ def HandlePostToBoard(context: HandlerContext) -> str:
     # Save to database
     post_id = context.database.SavePost(post)
     
-    # Build response
-    response_lines = [
-        f"Posted to '{area_name}'",
-        f"Post ID: {post_id}",
-        "",
-        f"Message: {message_text[:100]}..." if len(message_text) > 100 else f"Message: {message_text}",
-    ]
+    # Brief confirmation
+    return f"Posted to {area_name} (ID:{post_id})"
     
     return "\n".join(response_lines)
 
@@ -109,23 +104,11 @@ def HandleListAreas(context: HandlerContext) -> str:
     areas = context.database.GetAllAreas()
     
     if not areas:
-        return "No BBS areas exist yet. Post using BBS <area> <message>"
+        return "No areas. Post: BBS <area> <msg>"
     
-    lines = [
-        "=== BBS Areas ===",
-        "",
-    ]
-    
-    # List each area with post count
-    for area in areas:
-        post_count = context.database.GetPostCountForArea(area.name)
-        lines.append(f"{area.name}: {area.description} ({post_count} posts)")
-    
-    lines.append("")
-    lines.append("Type READ <area> to read posts")
-    lines.append("Type BBS <area> <message> to post")
-    
-    return "\n".join(lines)
+    # Brief listing
+    area_info = [f"{a.name}({context.database.GetPostCountForArea(a.name)})" for a in areas]
+    return "Areas: " + " ".join(area_info)
 
 
 def HandleReadBoard(context: HandlerContext) -> str:
@@ -145,15 +128,7 @@ def HandleReadBoard(context: HandlerContext) -> str:
     """
     # Check arguments - need area name
     if not context.arguments:
-        # No area specified - show help
-        lines = [
-            "Usage: READ <area>",
-            "",
-            "Example: READ general",
-            "",
-            "Type AREAS to see available areas",
-        ]
-        return "\n".join(lines)
+        return "Usage: READ <area> | Use AREAS to list"
     
     # Get area name
     area_name = context.arguments[0].lower()
@@ -162,33 +137,19 @@ def HandleReadBoard(context: HandlerContext) -> str:
     area = context.database.GetAreaByName(area_name)
     
     if area is None:
-        return f"Area '{area_name}' does not exist. Type AREAS to see available areas."
+        return f"Area '{area_name}' not found. Use AREAS."
     
     # Get posts
     posts = context.database.GetPostsForArea(area_name)
     
     if not posts:
-        return f"No posts in '{area_name}'. Be the first to post!"
+        return f"No posts in {area_name}. Be first: BBS {area_name} <msg>"
     
-    # Format posts
-    lines = [
-        f"=== {area.name}: {area.description} ===",
-        f"Total posts: {len(posts)}",
-        "",
-    ]
-    
-    # Show posts (newest first)
-    for post in posts[:20]:  # Limit to 20 posts
-        timestamp = datetime.fromtimestamp(post.created_at).strftime("%Y-%m-%d %H:%M")
-        lines.append(f"--- Post #{post.id} by {post.from_node} at {timestamp} ---")
-        lines.append(post.body)
-        lines.append("")
-    
-    if len(posts) > 20:
-        lines.append(f"... and {len(posts) - 20} more posts")
-    
-    lines.append("")
-    lines.append(f"Type BBS {area_name} <message> to reply")
+    # Brief listing - show last 3 posts with ID and preview
+    lines = [f"=== {area_name} ({len(posts)} posts) ==="]
+    for post in posts[:3]:
+        preview = post.body[:50].replace("\n", " ")
+        lines.append(f"[{post.id}] {post.from_node}: {preview}...")
     
     return "\n".join(lines)
 
