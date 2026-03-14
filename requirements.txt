@@ -1,0 +1,11 @@
+# Meshtastic BBS Server Dependencies
+
+# Meshtastic library for serial communication with devices
+meshtastic>=1.2.0
+
+# YAML configuration file parsing
+pyyaml>=6.0
+
+# For external plugin discovery (Python 3.9+)
+# This is built-in for Python 3.10+, but needed for 3.9
+importlib-metadata>=4.0; python_version < "3.10"

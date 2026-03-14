@@ -1,0 +1,71 @@
+# Meshtastic BBS Server Configuration
+# Copy this file to config.yaml and modify as needed
+
+# BBS Node Settings
+bbs:
+  # This BBS's node ID (must be valid Meshtastic node ID format)
+  node_id: "!bbs0001"
+  
+  # Human-readable name for this BBS
+  name: "MeshBBS"
+  
+  # Description shown in HELP command
+  description: "Meshtastic Bulletin Board System"
+
+# Serial Device Configuration
+serial:
+  # List of Meshtastic devices to connect
+  devices:
+    # First device
+    - port: "/dev/ttyUSB0"
+      label: "primary_node"
+      # Optional: specific channel index to listen on
+      channel_index: 0
+    
+    # Second device (uncomment if needed)
+    # - port: "/dev/ttyUSB1"
+    #   label: "secondary_node"
+
+# Database Settings
+database:
+  # Path to SQLite database file
+  path: "/var/lib/meshtastic-bbs/bbs.db"
+
+# Logging Configuration
+logging:
+  # Log level: DEBUG, INFO, WARNING, ERROR
+  level: "INFO"
+  
+  # Log file path (optional, logs to stdout if not set)
+  file: "/var/log/meshtastic-bbs/bbs.log"
+  
+  # Log format
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# Plugin Configuration
+plugins:
+  # List of plugins to enable (by name)
+  enabled:
+    - "personal_messaging"
+    - "bulletin_board"
+  
+  # Plugin-specific configuration
+  personal_messaging:
+    # Maximum message length
+    max_message_length: 500
+    # Maximum subject length
+    max_subject_length: 50
+  
+  bulletin_board:
+    # Default BBS area
+    default_area: "general"
+    # Available areas
+    areas:
+      - name: "general"
+        description: "General discussion"
+      - name: "for-sale"
+        description: "Items for sale or trade"
+      - name: "help"
+        description: "Ask for help"
+      - name: "announcements"
+        description: "Official announcements"

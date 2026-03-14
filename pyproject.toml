@@ -1,0 +1,66 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "meshtastic-bbs"
+version = "1.0.0"
+description = "A lightweight BBS server for Meshtastic mesh networks"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "MeshBBS Community"}
+]
+keywords = ["meshtastic", "bbs", "packet-radio", "mesh-network"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Communications :: BBS",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "meshtastic>=1.2.0",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "ruff>=0.1.0",
+]
+
+[project.scripts]
+meshtastic-bbs = "bbs.Application:Main"
+
+# Entry points for plugins
+# Third-party plugins can register using this group
+[project.entry-points."meshtastic-bbs.plugins"]
+personal_messaging = "bbs.plugins.builtin.PersonalMessaging:PersonalMessagingPlugin"
+bulletin_board = "bbs.plugins.builtin.BulletinBoard:BulletinBoardPlugin"
+
+[tool.setuptools]
+packages = ["bbs", "bbs.plugins", "bbs.plugins.builtin", "bbs.protocol"]
+
+[tool.setuptools.package-data]
+bbs = ["*.yaml", "*.yml"]
+
+[tool.black]
+line-length = 100
+target-version = ["py39", "py310", "py311"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py39"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
