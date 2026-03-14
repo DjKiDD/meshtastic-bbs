@@ -368,7 +368,7 @@ class SerialManager:
         Uses retry logic to improve reliability.
         
         Args:
-            node_id: Destination node ID
+            node_id: Destination node ID (can be !hexstring or plain hex)
             text: Message text to send
             interface: The interface to send on
             
@@ -376,15 +376,19 @@ class SerialManager:
             True if message was sent successfully
         """
         max_retries = 3
-        retry_delay = 0.3
+        retry_delay = 0.5
+        
+        # Convert node_id to node number if needed
+        dest_id = self._convertNodeId(node_id)
         
         # Find the device that has this interface
         for port, device in self.devices.items():
             if device.interface is interface:
                 for attempt in range(max_retries):
                     try:
-                        self.logger.info(f"Sending to {node_id} on {port} (attempt {attempt + 1}/{max_retries})")
-                        device.interface.sendText(text, destinationId=node_id, wantAck=False)
+                        self.logger.info(f"Sending to {node_id} ({dest_id}) on {port} (attempt {attempt + 1}/{max_retries})")
+                        # Use wantAck=True for reliability, convert to node number
+                        device.interface.sendText(text, destinationId=dest_id, wantAck=True)
                         self.logger.info(f"Sent successfully to {node_id}")
                         return True
                     except Exception as e:
@@ -399,6 +403,21 @@ class SerialManager:
         self.logger.warning(f"Interface not found, trying all devices")
         return self.SendTextToNode(node_id, text)
     
+    def _convertNodeId(self, node_id: str) -> str:
+        """
+        Convert node ID to format suitable for sendText.
+        
+        Args:
+            node_id: Node ID in format !hexstring or plain hex
+            
+        Returns:
+            Node ID suitable for meshtastic
+        """
+        # If starts with !, remove it
+        if node_id.startswith('!'):
+            return node_id[1:]
+        return node_id
+    
     def SendTextToNode(self, node_id: str, text: str) -> bool:
         """
         Send a text message to a specific node.
@@ -412,8 +431,11 @@ class SerialManager:
             True if message was sent successfully
         """
         max_retries = 3
-        retry_delay = 0.3
+        retry_delay = 0.5
         success = False
+        
+        # Convert node_id to node number if needed
+        dest_id = self._convertNodeId(node_id)
         
         for port, device in self.devices.items():
             if not device.connected or not device.interface:
@@ -421,7 +443,7 @@ class SerialManager:
             
             for attempt in range(max_retries):
                 try:
-                    device.interface.sendText(text, destinationId=node_id, wantAck=False)
+                    device.interface.sendText(text, destinationId=dest_id, wantAck=True)
                     success = True
                     self.logger.debug(f"Sent to {node_id} on {port} (attempt {attempt + 1})")
                     break
