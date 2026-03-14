@@ -102,14 +102,11 @@ def HandleHangmanCommand(context: HandlerContext) -> str:
     """Main handler for hangman commands."""
     args = context.arguments
     
-    if not args:
-        return "HANG | GUESS <L> | WORD <w> | HINT"
+    cmd = args[0].upper() if args else "HANG"
+    context.logger.info(f"Hangman command: {cmd} from {context.from_node}, args: {args}")
     
-    cmd = args[0].upper()
-    context.logger.info(f"Hangman command: {cmd} from {context.from_node}")
-    
-    # Start new game
-    if cmd in ("HANGMAN", "HANG", "NEW"):
+    # Start new game (no args means start a new game)
+    if cmd in ("HANGMAN", "HANG", "NEW") or not args:
         return StartGame(context)
     
     # Check for active game
