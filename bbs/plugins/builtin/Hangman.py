@@ -163,8 +163,14 @@ def StartGame(context: HandlerContext) -> str:
         return f"Game in progress! | {active_games[context.from_node].GetDisplay()}"
     
     # Get word from database or use default
+    # HandlerContext uses 'database', PluginContext uses 'Database'
+    if hasattr(context, 'database'):
+        db = context.database
+    else:
+        db = context.Database
+    
     try:
-        cursor = context.Database.connection.execute(
+        cursor = db.connection.execute(
             "SELECT word FROM hangman_words ORDER BY RANDOM() LIMIT 1"
         )
         row = cursor.fetchone()
@@ -200,24 +206,40 @@ class HangmanPlugin(BasePlugin):
         self.LoadDefaultWords(context)
         self.logger.info("Hangman plugin loaded")
     
-    def CreateTables(self, context: PluginContext) -> None:
+    def CreateTables(self, db_source) -> None:
         """Create hangman tables if they don't exist."""
         try:
-            context.Database.connection.execute("""
+            # Handle both PluginContext and Database objects
+            if hasattr(db_source, 'Database'):
+                # It's a PluginContext
+                conn = db_source.Database.connection
+            else:
+                # It's a Database object
+                conn = db_source.connection
+            
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS hangman_words (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     word TEXT UNIQUE NOT NULL,
                     added_at INTEGER NOT NULL
                 )
             """)
-            context.Database.connection.commit()
+            conn.commit()
         except Exception as e:
             self.logger.warning(f"Table creation: {e}")
     
-    def LoadDefaultWords(self, context: PluginContext) -> None:
+    def LoadDefaultWords(self, db_source) -> None:
         """Load default words if table is empty."""
         try:
-            cursor = context.Database.connection.execute(
+            # Handle both PluginContext and Database objects
+            if hasattr(db_source, 'Database'):
+                # It's a PluginContext
+                conn = db_source.Database.connection
+            else:
+                # It's a Database object
+                conn = db_source.connection
+            
+            cursor = conn.execute(
                 "SELECT COUNT(*) as cnt FROM hangman_words"
             )
             row = cursor.fetchone()
@@ -225,13 +247,13 @@ class HangmanPlugin(BasePlugin):
                 now = int(time.time())
                 for word in DEFAULT_WORDS:
                     try:
-                        context.Database.connection.execute(
+                        conn.execute(
                             "INSERT INTO hangman_words (word, added_at) VALUES (?, ?)",
                             (word, now)
                         )
                     except:
                         pass
-                context.Database.connection.commit()
+                conn.commit()
                 self.logger.info("Loaded default words")
         except Exception as e:
             self.logger.warning(f"Default words: {e}")
@@ -252,6 +274,9 @@ def HandleAdminHangman(context: HandlerContext, args) -> str:
     cmd = args[0].upper()
     args = args[1:]
     
+    # HandlerContext uses 'database' (not 'Database')
+    db = context.database
+    
     if cmd == "ADDWORD":
         if not args:
             return "Usage: ADMIN ADDWORD <word>"
@@ -260,11 +285,11 @@ def HandleAdminHangman(context: HandlerContext, args) -> str:
             return "Word must be 3+ letters"
         try:
             now = int(time.time())
-            context.Database.connection.execute(
+            db.connection.execute(
                 "INSERT INTO hangman_words (word, added_at) VALUES (?, ?)",
                 (word, now)
             )
-            context.Database.connection.commit()
+            db.connection.commit()
             return f"OK: Added {word}"
         except:
             return f"Error: Word exists"
@@ -274,18 +299,18 @@ def HandleAdminHangman(context: HandlerContext, args) -> str:
             return "Usage: ADMIN DELWORD <word>"
         word = args[0].upper()
         try:
-            context.Database.connection.execute(
+            db.connection.execute(
                 "DELETE FROM hangman_words WHERE word = ?",
                 (word,)
             )
-            context.Database.connection.commit()
+            db.connection.commit()
             return f"OK: Deleted {word}"
         except:
             return f"Error: Word not found"
     
     elif cmd == "WORDS":
         try:
-            cursor = context.Database.connection.execute(
+            cursor = db.connection.execute(
                 "SELECT COUNT(*) as cnt FROM hangman_words"
             )
             row = cursor.fetchone()
