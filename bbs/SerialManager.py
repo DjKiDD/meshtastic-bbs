@@ -34,6 +34,7 @@ Usage:
 """
 
 import time
+import threading
 from typing import Dict, List, Optional, Callable, Any
 from dataclasses import dataclass
 
@@ -102,9 +103,14 @@ class SerialManager:
         # Packet callback function
         self.packet_callback: Optional[Callable] = None
         
+        # ACK tracking: {packet_id: {"node_id": str, "event": threading.Event, "acked": bool}}
+        self._pending_acks: Dict[int, Dict] = {}
+        self._ack_lock = threading.Lock()
+        
         # Subscribe to meshtastic packet events if available
         if MESHTASTIC_AVAILABLE:
             pub.subscribe(self._OnMeshtasticPacket, "meshtastic.receive")
+            pub.subscribe(self._OnMeshtasticAck, "meshtastic.ack")
     
     def ConnectAll(self) -> None:
         """
@@ -311,6 +317,25 @@ class SerialManager:
             except Exception as e:
                 self.logger.error(f"Error in packet callback: {e}")
     
+    def _OnMeshtasticAck(self, packet: dict, interface) -> None:
+        """
+        Internal callback for Meshtastic ACK events.
+        
+        This is called when we receive an ACK for a message we sent.
+        
+        Args:
+            packet: The ACK packet dictionary
+            interface: The interface that received the ACK
+        """
+        # packet contains 'id' which is the packet ID we sent
+        packet_id = packet.get('id')
+        if packet_id and packet_id in self._pending_acks:
+            with self._ack_lock:
+                ack_info = self._pending_acks[packet_id]
+                ack_info['acked'] = True
+                ack_info['event'].set()
+            self.logger.debug(f"Received ACK for packet {packet_id}")
+    
     def SendTextToMesh(self, text: str, channel_index: int = 0) -> bool:
         """
         Send a text message to the entire mesh.
@@ -337,16 +362,18 @@ class SerialManager:
         
         return success
     
-    def SendTextToNode(self, node_id: str, text: str) -> bool:
+    def SendTextToNode(self, node_id: str, text: str, want_ack: bool = True, timeout: float = 10.0) -> bool:
         """
         Send a text message to a specific node.
         
         Args:
             node_id: Destination node ID
             text: Message text to send
+            want_ack: Whether to wait for ACK (default: True)
+            timeout: How long to wait for ACK in seconds (default: 10)
             
         Returns:
-            True if at least one device sent successfully
+            True if message was acknowledged by recipient
         """
         success = False
         
@@ -355,9 +382,50 @@ class SerialManager:
                 continue
             
             try:
-                device.interface.sendText(text, destinationId=node_id)
-                success = True
-                self.logger.debug(f"Sent to {node_id} on {port}")
+                # Use wantAck to request delivery confirmation
+                # store the returned packet to get its ID for ACK tracking
+                sent_packet = device.interface.sendText(
+                    text, 
+                    destinationId=node_id,
+                    wantAck=want_ack
+                )
+                
+                if want_ack and sent_packet:
+                    packet_id = sent_packet.get('id')
+                    if packet_id:
+                        # Track this packet for ACK
+                        ack_event = threading.Event()
+                        with self._ack_lock:
+                            self._pending_acks[packet_id] = {
+                                'node_id': node_id,
+                                'event': ack_event,
+                                'acked': False
+                            }
+                        
+                        # Wait for ACK
+                        if ack_event.wait(timeout=timeout):
+                            with self._ack_lock:
+                                if packet_id in self._pending_acks:
+                                    if self._pending_acks[packet_id]['acked']:
+                                        success = True
+                                        self.logger.debug(f"ACK received for packet {packet_id} to {node_id}")
+                                    del self._pending_acks[packet_id]
+                        else:
+                            # Timeout waiting for ACK
+                            with self._ack_lock:
+                                if packet_id in self._pending_acks:
+                                    del self._pending_acks[packet_id]
+                            self.logger.warning(f"Timeout waiting for ACK for packet {packet_id} to {node_id}")
+                    else:
+                        # No packet ID returned, assume success if no exception
+                        success = True
+                else:
+                    # Not waiting for ACK, just check no exception
+                    success = True
+                    
+                if success:
+                    self.logger.debug(f"Sent to {node_id} on {port}")
+                    
             except Exception as e:
                 self.logger.error(f"Failed to send to {node_id} on {port}: {e}")
         
