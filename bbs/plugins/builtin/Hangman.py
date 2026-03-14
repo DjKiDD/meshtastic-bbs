@@ -102,11 +102,54 @@ def HandleHangmanCommand(context: HandlerContext) -> str:
     """Main handler for hangman commands."""
     args = context.arguments
     
-    cmd = args[0].upper() if args else "HANG"
-    context.logger.info(f"Hangman command: {cmd} from {context.from_node}, args: {args}")
+    context.logger.info(f"Hangman args: {args} from {context.from_node}")
     
-    # Start new game (no args means start a new game)
-    if cmd in ("HANGMAN", "HANG", "NEW") or not args:
+    # Handle "HANG GUESS X" or "HANG WORD X" format
+    # When command is HANG but first arg is a subcommand
+    if args and args[0].upper() in ("GUESS", "WORD", "HINT", "STATUS", "QUIT", "ABANDON"):
+        # Run the subcommand
+        cmd = args[0].upper()
+        sub_args = args[1:] if len(args) > 1 else []
+        
+        # Check for active game for these commands
+        if context.from_node not in active_games:
+            return "No game. Start: HANG"
+        
+        game = active_games[context.from_node]
+        
+        if cmd == "GUESS":
+            if not sub_args:
+                return "GUESS <letter>"
+            letter = sub_args[0]
+            result = game.GuessLetter(letter)
+            if "WIN" in result or "LOSE" in result:
+                del active_games[context.from_node]
+            return result
+        
+        if cmd == "WORD":
+            if not sub_args:
+                return "WORD <guess>"
+            word = sub_args[0]
+            result = game.GuessWord(word)
+            if "WIN" in result or "LOSE" in result:
+                del active_games[context.from_node]
+            return result
+        
+        if cmd == "HINT":
+            result = game.GetHint()
+            if "WIN" in result or "LOSE" in result:
+                del active_games[context.from_node]
+            return result
+        
+        if cmd == "STATUS":
+            return game.GetDisplay()
+        
+        if cmd in ("QUIT", "ABANDON"):
+            del active_games[context.from_node]
+            return "Game abandoned. New game: HANG"
+    
+    # Start new game (no args or HANG/HANGMAN command)
+    if not args or args[0].upper() in ("HANGMAN", "HANG", "NEW"):
         return StartGame(context)
     
     # Check for active game
