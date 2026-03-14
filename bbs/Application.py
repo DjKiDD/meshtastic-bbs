@@ -263,26 +263,31 @@ class Application:
             packet: The received packet dictionary
             interface: The interface that received the packet
         """
-        # Only process text packets
-        if packet.get('type') != 'text':
-            return
+        # Log all packets for debugging
+        self.logger.debug(f"Received packet: {packet}")
         
-        # Get the text content
-        text = packet.get('text', '')
+        # Get the text content - check multiple possible field names
+        text = packet.get('text') or packet.get('payload') or ''
         if not text:
             return
         
-        # Get source node
-        from_node = packet.get('from', '')
+        # Get source node - check multiple possible field names
+        from_node = packet.get('from') or packet.get('fromId') or ''
+        if not from_node:
+            return
         
-        self.logger.debug(f"Received from {from_node}: {text[:50]}...")
+        # Skip our own packets
+        if from_node == self.config.GetNodeId():
+            return
+        
+        self.logger.info(f"Received from {from_node}: {text[:50]}...")
         
         # Route the command
         response = self.command_router.RouteCommand(text, from_node, interface)
         
         # Send response back to sender
         if response:
-            self.logger.debug(f"Sending response to {from_node}")
+            self.logger.info(f"Sending response to {from_node}")
             self.serial_manager.SendTextToNode(from_node, response)
     
     def Run(self) -> None:

@@ -255,6 +255,13 @@ class SerialManager:
             - etc.
         """
         self.packet_callback = callback
+        
+        # Re-subscribe with the callback if meshtastic is available
+        if MESHTASTIC_AVAILABLE:
+            try:
+                pub.subscribe(self._OnMeshtasticPacket, "meshtastic.receive")
+            except Exception as e:
+                self.logger.warning(f"Could not subscribe to meshtastic.receive: {e}")
     
     def _OnMeshtasticPacket(self, packet: dict, interface) -> None:
         """
@@ -268,10 +275,6 @@ class SerialManager:
             packet: The received packet dictionary
             interface: The interface that received the packet
         """
-        # Filter out our own packets
-        if packet.get('from') == self.config.GetNodeId():
-            return
-        
         # Forward to registered callback
         if self.packet_callback:
             try:
