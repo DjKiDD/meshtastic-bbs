@@ -362,6 +362,33 @@ class SerialManager:
         
         return success
     
+    def SendTextToNodeOnInterface(self, node_id: str, text: str, interface) -> bool:
+        """
+        Send a text message to a specific node on a specific interface.
+        
+        Args:
+            node_id: Destination node ID
+            text: Message text to send
+            interface: The interface to send on
+            
+        Returns:
+            True if message was sent successfully
+        """
+        # Find the device that has this interface
+        for port, device in self.devices.items():
+            if device.interface is interface:
+                try:
+                    device.interface.sendText(text, destinationId=node_id, wantAck=False)
+                    self.logger.debug(f"Sent to {node_id} on {port}")
+                    return True
+                except Exception as e:
+                    self.logger.error(f"Failed to send to {node_id} on {port}: {e}")
+                    return False
+        
+        # Interface not found, try all devices
+        self.logger.warning(f"Interface not found, trying all devices")
+        return self.SendTextToNode(node_id, text)
+    
     def SendTextToNode(self, node_id: str, text: str) -> bool:
         """
         Send a text message to a specific node.
