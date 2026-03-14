@@ -111,11 +111,11 @@ class Configuration:
         logging: Logging configuration
         plugins: Plugin configuration
     """
-    bbs: BbsConfig = field(default_factory=BbsConfig)
+    bbs: BbsConfig = field(default_factory=lambda: BbsConfig(node_id=""))
     serial_devices: List[SerialDeviceConfig] = field(default_factory=list)
-    database: DatabaseConfig = field(default_factory=DatabaseConfig)
-    logging: LoggingConfig = field(default_factory=LoggingConfig)
-    plugins: PluginSettings = field(default_factory=PluginSettings)
+    database: DatabaseConfig = field(default_factory=lambda: DatabaseConfig())
+    logging: LoggingConfig = field(default_factory=lambda: LoggingConfig())
+    plugins: PluginSettings = field(default_factory=lambda: PluginSettings())
 
     @staticmethod
     def LoadConfiguration(config_path: str) -> 'Configuration':
