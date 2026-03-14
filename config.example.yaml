@@ -41,6 +41,7 @@ plugins:
     - "personal_messaging"
     - "bulletin_board"
     - "admin"
+    - "hangman"
   
   # Plugin-specific configuration
   personal_messaging:

@@ -17,8 +17,13 @@ source venv/bin/activate
 
 # Check if config exists
 if [ ! -f "config.yaml" ]; then
-    echo "Config file not found. Run setup.sh first!"
-    exit 1
+    if [ -f "config.example.yaml" ]; then
+        echo "Creating config.yaml from example..."
+        cp config.example.yaml config.yaml
+    else
+        echo "Config file not found. Run setup.sh first!"
+        exit 1
+    fi
 fi
 
 # Run the BBS

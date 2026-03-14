@@ -129,6 +129,12 @@ class PluginManager:
         except ImportError as e:
             self.logger.warning(f"Failed to import Admin plugin: {e}")
         
+        try:
+            from bbs.plugins.builtin.Hangman import HangmanPlugin
+            plugins[HangmanPlugin.Name] = HangmanPlugin
+        except ImportError as e:
+            self.logger.warning(f"Failed to import Hangman plugin: {e}")
+        
         self.logger.debug(f"Discovered built-in plugins: {list(plugins.keys())}")
         
         return plugins

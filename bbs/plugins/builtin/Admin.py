@@ -98,6 +98,7 @@ def HandleAdminCommand(context: HandlerContext) -> str:
     command = cmd_args[0].upper()
     cmd_args = cmd_args[1:]
     
+    # BBS commands
     if command == "CREATE":
         return HandleAdminCreate(context, cmd_args)
     elif command == "DELETE":
@@ -112,6 +113,44 @@ def HandleAdminCommand(context: HandlerContext) -> str:
         return HandleAdminConfirm(context, cmd_args)
     elif command == "WHOAMI":
         return f"Your node ID: {context.from_node}"
+    # Hangman commands
+    elif command == "ADDWORD":
+        if not cmd_args:
+            return "Usage: ADMIN ADDWORD <word>"
+        word = cmd_args[0].upper()
+        if len(word) < 3:
+            return "Word must be 3+ letters"
+        try:
+            now = int(time.time())
+            context.database.connection.execute(
+                "INSERT INTO hangman_words (word, added_at) VALUES (?, ?)",
+                (word, now)
+            )
+            context.database.connection.commit()
+            return f"OK: Added {word}"
+        except Exception as e:
+            return f"Error: {e}"
+    elif command == "DELWORD":
+        if not cmd_args:
+            return "Usage: ADMIN DELWORD <word>"
+        word = cmd_args[0].upper()
+        try:
+            context.database.connection.execute(
+                "DELETE FROM hangman_words WHERE word = ?", (word,)
+            )
+            context.database.connection.commit()
+            return f"OK: Deleted {word}"
+        except Exception as e:
+            return f"Error: {e}"
+    elif command == "WORDS":
+        try:
+            cursor = context.database.connection.execute(
+                "SELECT COUNT(*) as cnt FROM hangman_words"
+            )
+            row = cursor.fetchone()
+            return f"Hangman words: {row['cnt']}"
+        except:
+            return "Error: Cannot count words"
     else:
         return f"Unknown admin command: {command}"
 
@@ -258,6 +297,55 @@ def HandleAdminPosts(context: HandlerContext, args) -> str:
         lines.append(f"+{len(posts)-5} more")
     
     return " | ".join(lines)
+
+
+# Hangman admin handlers (defined inline to avoid forward reference issues)
+
+def _HandleHangmanAddWord(context: HandlerContext, args) -> str:
+    """Add a word to hangman wordlist."""
+    if not args:
+        return "Usage: ADMIN ADDWORD <word>"
+    word = args[0].upper()
+    if len(word) < 3:
+        return "Word must be 3+ letters"
+    try:
+        now = int(time.time())
+        context.database.connection.execute(
+            "INSERT INTO hangman_words (word, added_at) VALUES (?, ?)",
+            (word, now)
+        )
+        context.database.connection.commit()
+        return f"OK: Added {word}"
+    except Exception as e:
+        return f"Error: {e}"
+
+
+def _HandleHangmanDelWord(context: HandlerContext, args) -> str:
+    """Remove a word from hangman wordlist."""
+    if not args:
+        return "Usage: ADMIN DELWORD <word>"
+    word = args[0].upper()
+    try:
+        context.database.connection.execute(
+            "DELETE FROM hangman_words WHERE word = ?",
+            (word,)
+        )
+        context.database.connection.commit()
+        return f"OK: Deleted {word}"
+    except Exception as e:
+        return f"Error: {e}"
+
+
+def _HandleHangmanWords(context: HandlerContext, args) -> str:
+    """List word count."""
+    try:
+        cursor = context.database.connection.execute(
+            "SELECT COUNT(*) as cnt FROM hangman_words"
+        )
+        row = cursor.fetchone()
+        return f"Hangman words: {row['cnt']}"
+    except Exception as e:
+        return f"Error: {e}"
 
 
 class AdminPlugin(BasePlugin):
