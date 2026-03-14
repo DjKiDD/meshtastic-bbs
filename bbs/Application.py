@@ -266,14 +266,29 @@ class Application:
         # Log all packets for debugging
         self.logger.info(f"FULL PACKET: {packet}")
         
-        # Get the text content - check multiple possible field names
-        text = packet.get('text') or packet.get('payload') or ''
+        # Get the text content - check decoded.text first (meshtastic stores it there)
+        decoded = packet.get('decoded', {})
+        text = packet.get('text') or decoded.get('text') or decoded.get('payload', b'').decode('utf-8', errors='ignore') if isinstance(decoded.get('payload'), bytes) else ''
+        
+        # Clean up text if it's in bytes
+        if isinstance(text, bytes):
+            try:
+                text = text.decode('utf-8')
+            except:
+                text = ''
+        
         if not text:
             self.logger.warning("No text in packet")
             return
         
-        # Get source node - check multiple possible field names
-        from_node = packet.get('from') or packet.get('fromId') or ''
+        # Get source node - check fromId first
+        from_node = packet.get('fromId') or str(packet.get('from', ''))
+        
+        # Also check decoded.user for the ID
+        if not from_node or from_node == '4294967295':
+            decoded_user = decoded.get('user', {})
+            from_node = decoded_user.get('id', '')
+        
         if not from_node:
             self.logger.warning("No from_node in packet")
             return
