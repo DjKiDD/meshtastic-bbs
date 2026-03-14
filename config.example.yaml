@@ -28,16 +28,16 @@ serial:
 
 # Database Settings
 database:
-  # Path to SQLite database file
-  path: "/var/lib/meshtastic-bbs/bbs.db"
+  # Path to SQLite database file (use local path or change to /var/lib/meshtastic-bbs/bbs.db for system-wide)
+  path: "bbs.db"
 
 # Logging Configuration
 logging:
   # Log level: DEBUG, INFO, WARNING, ERROR
   level: "INFO"
   
-  # Log file path (optional, logs to stdout if not set)
-  file: "/var/log/meshtastic-bbs/bbs.log"
+  # Log file path (optional, leave empty for stdout only, or use absolute path)
+  # file: "bbs.log"
   
   # Log format
   format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
