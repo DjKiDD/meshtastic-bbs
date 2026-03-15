@@ -319,7 +319,7 @@ class SerialManager:
             
             if routing:
                 error_reason = routing.get('errorReason', 'NONE')
-                self.logger.info(f"Routing packet received - id: {packet_id}, errorReason: '{error_reason}', pending: {list(self._pending_acks.keys())}")
+                self.logger.debug(f"Routing packet - id: {packet_id}, error: {error_reason}")
                 
                 if packet_id in self._pending_acks:
                     if error_reason == 'NONE':
