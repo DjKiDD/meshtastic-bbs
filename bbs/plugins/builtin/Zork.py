@@ -1336,12 +1336,15 @@ def HandleZorkCommand(context: HandlerContext) -> str:
     
     cmd = args[0].upper()
     rest = " ".join(args[1:]).lower() if len(args) > 1 else ""
+    first_arg = args[0].lower() if args else ""
     
-    # Movement
-    if cmd in ("N", "NORTH", "S", "SOUTH", "E", "EAST", "W", "WEST", "U", "UP", "D", "DOWN", 
-               "NE", "NORTHEAST", "NW", "NORTHWEST", "SE", "SOUTHEAST", "SW", "SOUTHWEST",
-               "GO", "WALK", "ENTER", "IN", "OUT"):
-        direction = cmd if len(cmd) <= 2 or cmd in ("UP", "DOWN") else rest.split()[0] if rest else ""
+    # Movement - check both cmd and first_arg for directions
+    direction_words = ("n", "north", "s", "south", "e", "east", "w", "west", 
+                      "u", "up", "d", "down", "ne", "northeast", "nw", "northwest",
+                      "se", "southeast", "sw", "southwest", "go", "walk", "enter", "in", "out")
+    
+    if first_arg in direction_words or cmd in direction_words:
+        direction = first_arg if first_arg in direction_words else cmd
         if direction in ("n", "north"): return game.Move("north")
         if direction in ("s", "south"): return game.Move("south")
         if direction in ("e", "east"): return game.Move("east")
@@ -1352,6 +1355,11 @@ def HandleZorkCommand(context: HandlerContext) -> str:
         if direction in ("nw", "northwest"): return game.Move("nw")
         if direction in ("se", "southeast"): return game.Move("se")
         if direction in ("sw", "southwest"): return game.Move("sw")
+        if direction in ("go", "walk", "enter"): 
+            if rest: return game.Move(rest)
+            return "Go where?"
+        if direction in ("in", "out"):
+            return game.Move(direction)
         return game.Move(direction)
     
     # Look
