@@ -103,39 +103,36 @@ class PluginManager:
     
     def _DiscoverBuiltInPlugins(self) -> Dict[str, Type[BasePlugin]]:
         """
-        Discover built-in plugins.
+        Dynamically discover built-in plugins.
+        
+        Scans the bbs.plugins.builtin module and auto-discovers
+        any class that inherits from BasePlugin.
         
         Returns:
             Dict mapping plugin names to their classes
         """
         plugins: Dict[str, Type[BasePlugin]] = {}
         
-        # Import and register built-in plugins
+        # Import the builtin module
         try:
-            from bbs.plugins.builtin.PersonalMessaging import PersonalMessagingPlugin
-            plugins[PersonalMessagingPlugin.Name] = PersonalMessagingPlugin
+            import bbs.plugins.builtin as builtin_module
+            
+            # Get all classes from the module
+            for name in dir(builtin_module):
+                obj = getattr(builtin_module, name)
+                # If it's a class that inherits from BasePlugin
+                if (isinstance(obj, type) and 
+                    issubclass(obj, BasePlugin) and 
+                    obj is not BasePlugin):
+                    try:
+                        plugins[obj.Name] = obj
+                    except Exception as e:
+                        self.logger.warning(f"Failed to get Name from {name}: {e}")
+            
+            self.logger.debug(f"Discovered built-in plugins: {list(plugins.keys())}")
+            
         except ImportError as e:
-            self.logger.warning(f"Failed to import PersonalMessaging plugin: {e}")
-        
-        try:
-            from bbs.plugins.builtin.BulletinBoard import BulletinBoardPlugin
-            plugins[BulletinBoardPlugin.Name] = BulletinBoardPlugin
-        except ImportError as e:
-            self.logger.warning(f"Failed to import BulletinBoard plugin: {e}")
-        
-        try:
-            from bbs.plugins.builtin.Admin import AdminPlugin
-            plugins[AdminPlugin.Name] = AdminPlugin
-        except ImportError as e:
-            self.logger.warning(f"Failed to import Admin plugin: {e}")
-        
-        try:
-            from bbs.plugins.builtin.Hangman import HangmanPlugin
-            plugins[HangmanPlugin.Name] = HangmanPlugin
-        except ImportError as e:
-            self.logger.warning(f"Failed to import Hangman plugin: {e}")
-        
-        self.logger.debug(f"Discovered built-in plugins: {list(plugins.keys())}")
+            self.logger.warning(f"Failed to import builtin plugins: {e}")
         
         return plugins
     
