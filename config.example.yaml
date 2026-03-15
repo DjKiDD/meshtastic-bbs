@@ -43,6 +43,7 @@ plugins:
     - "bulletin_board"
     - "admin"
     - "hangman"
+    - "zork"
   
   # Plugin-specific configuration
   personal_messaging:
